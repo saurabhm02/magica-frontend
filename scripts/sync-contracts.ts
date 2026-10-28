@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const HEADER = "// GENERATED from server/src/contracts — do not edit. Run `pnpm sync:contracts`.\n";
+const HEADER = "\n";
 
 const clientRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const sourceDir = path.resolve(clientRoot, "../server/src/contracts");
