@@ -4,7 +4,7 @@ Frontend for the Agent Chat clone (Magica / Galaxy work trial). Backend lives in
 
 It's a close copy of Galaxy's live Agent Chat: you chat with an AI agent that can work for minutes, use tools (crop images, generate images, merge videos), ask you for approval, and stream its progress live. Close the tab or lose the connection, and the run is still there when you come back.
 
-> **Status:** work in progress. Done so far: project setup, Clerk sign-in with protected routes, TanStack Query provider, contracts sync script. Full checklist in [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md).
+> **Status:** work in progress. Done so far: project setup, Clerk sign-in with protected routes, app shell (sidebar, composer), the API layer (`services/`, `queries/`) wired to real chats and messages. Full checklist in [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md).
 
 ---
 
@@ -86,6 +86,10 @@ pnpm test
 src/
   app/            routes: / , /chat/[chatId], /sign-in, /sign-up
   contracts/      generated copy of the backend's Zod schemas — never edit by hand
+  services/       typed API calls — the only place that calls fetch
+  queries/        TanStack Query hooks (useChats, useMessages, ...)
+  stores/         Zustand: ui.store (sidebar, drawer)
+  components/     shell, composer, chat, ui
   lib/            small shared helpers
   proxy.ts        Clerk route protection (Next 16 name for middleware)
 scripts/          sync-contracts.ts
@@ -93,7 +97,7 @@ tests/            Vitest tests
 docs/             architecture and design docs
 ```
 
-Folders like `services/`, `queries/`, `stores/`, `realtime/` and `components/` are added when the feature that needs them is built — no empty placeholder files. The planned layout is in [`AGENTS.md`](AGENTS.md).
+Folders like `realtime/`, `stores/live-run.store.ts` and `stores/composer.store.ts` are added when the feature that needs them is built — no empty placeholder files. The planned layout is in [`AGENTS.md`](AGENTS.md).
 
 ---
 
@@ -127,3 +131,6 @@ Only decisions that are already in the code. This table grows as features are bu
 | Contracts copied from the backend by a script, not hand-written | One source of truth for every shape; the copy is committed so the Vercel build works on its own | Need to re-run `pnpm sync:contracts` after backend changes (`--check` catches a stale copy) |
 | Clerk protects every route except sign-in / sign-up, in `proxy.ts` | One place for auth rules instead of checks scattered in pages | — |
 | TypeScript pinned to the same version as the backend | Shared Zod contracts compile the same way on both sides | Upgrades must happen in both repos together |
+| All API calls go through `services/*`, via one `request()` in `api-client.ts` | No raw `fetch` in components; one place adds the Clerk token, parses the response with Zod, and maps errors to `ApiError` | Every new route needs a service function, even trivial ones |
+| TanStack Query for chats and messages, cursor-paginated with `useInfiniteQuery` | Matches the backend's cursor pagination; caching and refetch come for free | Optimistic chat-list updates (rename/pin/delete) need manual cache patching + rollback |
+| `clientRequestId` generated once per send and reused on retry (`useRef`, not component state) | A retried send must hit the backend with the same id so it can't create a duplicate turn | The id only resets after a successful send, so a failed send must be retried, not re-typed, to stay idempotent |

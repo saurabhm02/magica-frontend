@@ -9,7 +9,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <TopBar />
         <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
       </div>
-      {/* artifact panel slot — opens when a generated asset is clicked, not wired yet */}
     </div>
   );
 }

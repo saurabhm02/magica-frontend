@@ -1,5 +1,6 @@
 import { PanelLeftClose, Search } from "lucide-react";
 import { IconButton } from "@/components/ui/icon-button";
+import { ChatList } from "./chat-list";
 import { navItems } from "./nav-items";
 import { SidebarNavItem } from "./sidebar-nav-item";
 import { UserCard } from "./user-card";
@@ -27,9 +28,7 @@ export function SidebarContent({ onCollapse }: { onCollapse?: () => void }) {
         ))}
       </nav>
 
-      <div className="flex min-h-0 flex-1 items-center justify-center px-3">
-        <p className="text-sm text-text-secondary">No tasks yet</p>
-      </div>
+      <ChatList />
 
       <div className="border-t border-border-tertiary px-3 py-2">
         <UserCard />

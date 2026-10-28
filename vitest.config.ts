@@ -10,5 +10,6 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
+    env: { NEXT_PUBLIC_API_URL: "http://localhost:4000" },
   },
 });
