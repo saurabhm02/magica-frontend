@@ -1,0 +1,7 @@
+allowBuilds:
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - '@clerk/backend@3.26.4'
+  - '@clerk/nextjs@7.9.22'
+  - '@clerk/react@6.18.3'
+  - '@clerk/shared@4.43.0'
