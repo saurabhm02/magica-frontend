@@ -7,6 +7,8 @@ type ComposerContextValue = {
   setValue: (value: string) => void;
   planMode: boolean;
   togglePlanMode: () => void;
+  disabled: boolean;
+  error: string | null;
   submit: () => void;
 };
 

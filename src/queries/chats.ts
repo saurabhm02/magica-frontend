@@ -26,8 +26,8 @@ function mapChats(data: ChatsPages | undefined, apply: (items: Chat[]) => Chat[]
 }
 
 // Shared optimistic-update + rollback + invalidate shape for every chat list mutation.
-function useOptimisticChatsMutation<TVars>(
-  mutationFn: (token: string, vars: TVars) => Promise<unknown>,
+function useOptimisticChatsMutation<TVars, TData>(
+  mutationFn: (token: string, vars: TVars) => Promise<TData>,
   applyOptimistic: (data: ChatsPages | undefined, vars: TVars) => ChatsPages | undefined,
 ) {
   const withAuth = useAuthedApi();

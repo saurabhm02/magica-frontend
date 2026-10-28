@@ -4,8 +4,6 @@ import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@/services/api-client";
 
-// Wraps a service call with a fresh Clerk token. Redirects to sign-in when
-// there's no token, or when the server rejects the one we sent.
 export function useAuthedApi() {
   const { getToken } = useAuth();
   const router = useRouter();

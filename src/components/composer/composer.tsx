@@ -11,21 +11,30 @@ const MAX_TEXTAREA_HEIGHT = 384;
 function ComposerProvider({
   children,
   onSubmit,
+  disabled = false,
 }: {
   children: React.ReactNode;
-  onSubmit?: (value: string) => void;
+  onSubmit?: (value: string) => void | Promise<void>;
+  disabled?: boolean;
 }) {
   const [value, setValue] = useState("");
   const [planMode, setPlanMode] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const submit = () => {
-    if (!value.trim()) return;
-    onSubmit?.(value);
+  const submit = async () => {
+    if (disabled || !value.trim() || !onSubmit) return;
+    setError(null);
+    try {
+      await onSubmit(value);
+      setValue("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    }
   };
 
   return (
     <ComposerContext.Provider
-      value={{ value, setValue, planMode, togglePlanMode: () => setPlanMode((p) => !p), submit }}
+      value={{ value, setValue, planMode, togglePlanMode: () => setPlanMode((p) => !p), disabled, error, submit }}
     >
       {children}
     </ComposerContext.Provider>
@@ -75,7 +84,7 @@ function ComposerTextarea() {
 }
 
 function ComposerActions() {
-  const { planMode, togglePlanMode, submit, value } = useComposer();
+  const { planMode, togglePlanMode, submit, value, disabled } = useComposer();
 
   return (
     <div className="flex items-center justify-between">
@@ -90,7 +99,7 @@ function ComposerActions() {
 
       <IconButton
         aria-label="Send"
-        disabled={!value.trim()}
+        disabled={disabled || !value.trim()}
         onClick={submit}
         className="bg-surface-main-background text-text-primary hover:bg-surface-main-background"
       >
@@ -100,4 +109,10 @@ function ComposerActions() {
   );
 }
 
-export { ComposerProvider, ComposerRoot, ComposerTextarea, ComposerActions };
+function ComposerError() {
+  const { error } = useComposer();
+  if (!error) return null;
+  return <p className="mx-auto w-[900px] max-w-full text-sm text-error">{error}</p>;
+}
+
+export { ComposerProvider, ComposerRoot, ComposerTextarea, ComposerActions, ComposerError };
