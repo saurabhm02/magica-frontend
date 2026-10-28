@@ -1,4 +1,4 @@
-// GENERATED from server/src/contracts — do not edit. Run `pnpm sync:contracts`.
+
 import { z } from "zod";
 
 export const Chat = z.object({
