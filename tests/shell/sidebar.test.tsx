@@ -7,11 +7,16 @@ import { useUiStore } from "@/stores/ui.store";
 import { server } from "../mocks/server";
 
 vi.mock("@clerk/nextjs", () => ({ useUser: () => ({ user: null }), useAuth: () => ({ getToken: async () => "token" }), useClerk: () => ({ signOut: vi.fn() }) }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+const mockPathname = { current: "/" };
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => mockPathname.current }));
 
 beforeEach(() => {
+  mockPathname.current = "/";
   useUiStore.setState({ sidebarCollapsed: false, mobileDrawerOpen: false });
-  server.use(http.get("http://localhost:4000/api/v1/chats", () => HttpResponse.json({ items: [], nextCursor: null })));
+  server.use(
+    http.get("http://localhost:4000/api/v1/chats", () => HttpResponse.json({ items: [], nextCursor: null })),
+    http.get("http://localhost:4000/api/v1/me/credits", () => HttpResponse.json({ balance: 29_010_000 })),
+  );
 });
 
 function renderSidebar() {
@@ -35,5 +40,13 @@ describe("Sidebar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Expand sidebar" }));
     expect(screen.getByText("New task")).toBeInTheDocument();
+  });
+
+  it("highlights the nav link matching the current route", () => {
+    mockPathname.current = "/tasks";
+    renderSidebar();
+
+    expect(screen.getByRole("link", { name: "Tasks" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "New task" })).not.toHaveAttribute("aria-current");
   });
 });

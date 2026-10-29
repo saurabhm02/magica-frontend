@@ -1,22 +1,9 @@
-import { Image, Info, Video, Wrench, type LucideIcon } from "lucide-react";
 import type { RunMetadata } from "@/contracts/run";
 
 export const FINAL_STATUSES: RunMetadata["status"][] = ["complete", "failed", "cancelled"];
 export const TEXT_STREAM_ID = "text";
 
-export const RECONNECT_INITIAL_DELAY_MS = 1000;
-export const RECONNECT_MAX_DELAY_MS = 5000;
 export const REST_POLL_INTERVAL_MS = 2500;
-
-export const RENDER_KEY_ICONS: Record<string, LucideIcon> = {
-  "image-result": Image,
-  "video-result": Video,
-  "model-info": Info,
-};
-
-export function getRenderKeyIcon(renderKey?: string): LucideIcon {
-  return (renderKey && RENDER_KEY_ICONS[renderKey]) || Wrench;
-}
 
 export function formatCredits(microcredits?: number): string {
   if (microcredits === undefined || microcredits === null) return "";

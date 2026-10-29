@@ -7,11 +7,14 @@ import { useUiStore } from "@/stores/ui.store";
 import { server } from "../mocks/server";
 
 vi.mock("@clerk/nextjs", () => ({ useUser: () => ({ user: null }), useAuth: () => ({ getToken: async () => "token" }), useClerk: () => ({ signOut: vi.fn() }) }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/" }));
 
 beforeEach(() => {
   useUiStore.setState({ sidebarCollapsed: false, mobileDrawerOpen: false });
-  server.use(http.get("http://localhost:4000/api/v1/chats", () => HttpResponse.json({ items: [], nextCursor: null })));
+  server.use(
+    http.get("http://localhost:4000/api/v1/chats", () => HttpResponse.json({ items: [], nextCursor: null })),
+    http.get("http://localhost:4000/api/v1/me/credits", () => HttpResponse.json({ balance: 29_010_000 })),
+  );
 });
 
 function renderMobileSidebar() {

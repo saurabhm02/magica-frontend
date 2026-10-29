@@ -6,26 +6,25 @@ import { useLiveRunStore } from "@/stores/live-run.store";
 import { useUiStore } from "@/stores/ui.store";
 
 const mockSignOut = vi.fn().mockResolvedValue(undefined);
-const mockPush = vi.fn();
+
+const mockUser = {
+  current: {
+    id: "user_test",
+    fullName: "Test User",
+    imageUrl: "https://example.com/avatar.png",
+    primaryEmailAddress: { emailAddress: "test@example.com" },
+  },
+};
 
 vi.mock("@clerk/nextjs", () => ({
-  useUser: () => ({
-    user: {
-      id: "user_test",
-      fullName: "Test User",
-      imageUrl: "https://example.com/avatar.png",
-      primaryEmailAddress: { emailAddress: "test@example.com" },
-    },
-  }),
+  useUser: () => ({ user: mockUser.current }),
   useClerk: () => ({
     signOut: mockSignOut,
   }),
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: mockPush,
-  }),
+  useRouter: () => ({ push: vi.fn() }),
 }));
 
 describe("UserCard & Logout", () => {
@@ -33,6 +32,12 @@ describe("UserCard & Logout", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUser.current = {
+      id: "user_test",
+      fullName: "Test User",
+      imageUrl: "https://example.com/avatar.png",
+      primaryEmailAddress: { emailAddress: "test@example.com" },
+    };
     queryClient = new QueryClient();
     useLiveRunStore.setState({
       runs: {
@@ -59,10 +64,32 @@ describe("UserCard & Logout", () => {
     expect(screen.getByText("Test User")).toBeInTheDocument();
   });
 
-  it("opens menu and logs out: clears cache, resets stores, calls signOut and redirects", async () => {
+  it("falls back to the email prefix when fullName is empty", () => {
+    mockUser.current = {
+      id: "user_test",
+      fullName: "",
+      imageUrl: "https://example.com/avatar.png",
+      primaryEmailAddress: { emailAddress: "akshat.anand@example.com" },
+    };
+    renderUserCard();
+    expect(screen.getByText("akshat.anand")).toBeInTheDocument();
+  });
+
+  it("falls back to the first letter of the name when there's no avatar image", () => {
+    mockUser.current = {
+      id: "user_test",
+      fullName: "",
+      imageUrl: "",
+      primaryEmailAddress: { emailAddress: "akshat.anand@example.com" },
+    };
+    renderUserCard();
+    expect(screen.getByText("A")).toBeInTheDocument();
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
+
+  it("logs out: awaits signOut first, then clears cache and resets stores", async () => {
     renderUserCard();
 
-    // Click menu button
     const menuBtn = screen.getByRole("button", { name: /user menu/i });
     fireEvent.click(menuBtn);
 
@@ -70,23 +97,23 @@ describe("UserCard & Logout", () => {
     const logoutBtn = screen.getByTestId("logout-button");
     expect(logoutBtn).toBeInTheDocument();
 
-    const clearSpy = vi.spyOn(queryClient, "clear");
+    const callOrder: string[] = [];
+    mockSignOut.mockImplementationOnce(async () => {
+      callOrder.push("signOut");
+    });
+    const clearSpy = vi.spyOn(queryClient, "clear").mockImplementationOnce(() => {
+      callOrder.push("clear");
+    });
 
     fireEvent.click(logoutBtn);
 
-    // Verify cache cleared
-    expect(clearSpy).toHaveBeenCalled();
+    await waitFor(() => expect(clearSpy).toHaveBeenCalled());
+    expect(callOrder).toEqual(["signOut", "clear"]);
 
-    // Verify stores reset
     expect(useLiveRunStore.getState().runs).toEqual({});
     expect(useUiStore.getState().sidebarCollapsed).toBe(false);
     expect(useUiStore.getState().mobileDrawerOpen).toBe(false);
     expect(useUiStore.getState().artifactPanel).toBeNull();
-
-    // Verify signOut and redirect called
-    await waitFor(() => {
-      expect(mockSignOut).toHaveBeenCalledWith({ redirectUrl: "/sign-in" });
-      expect(mockPush).toHaveBeenCalledWith("/sign-in");
-    });
+    expect(mockSignOut).toHaveBeenCalledWith({ redirectUrl: "/sign-in" });
   });
 });

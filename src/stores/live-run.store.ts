@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { SafeError } from "@/contracts/errors";
 import type { RunMetadata, RunStatus } from "@/contracts/run";
+import { FINAL_STATUSES } from "@/lib/constants";
 
 function toMetadataStatus(status?: RunStatus | RunMetadata["status"]): RunMetadata["status"] {
   if (!status) return "queued";
@@ -32,6 +33,7 @@ type LiveRunState = {
     ids: { runId?: string; triggerRunId: string; accessToken: string; status?: RunStatus | RunMetadata["status"] },
   ) => void;
   stop: (chatId: string) => void;
+  setStatus: (chatId: string, status: RunMetadata["status"]) => void;
   setReconnecting: (chatId: string, isReconnecting: boolean) => void;
   fail: (chatId: string, message: string) => void;
   setMetadata: (chatId: string, metadata: RunMetadata) => void;
@@ -65,13 +67,13 @@ export const useLiveRunStore = create<LiveRunState>((set) => ({
         ? toMetadataStatus(inputStatus)
         : existing?.status ?? "queued";
       const item: LiveRun = {
-        status: finalStatus,
         text: existing?.text ?? "",
         thinkingStartedAt: existing?.thinkingStartedAt,
         tools: existing?.tools ?? [],
         assets: existing?.assets ?? [],
         ...existing,
         ...restIds,
+        status: finalStatus,
       };
       return {
         runs: {
@@ -83,6 +85,9 @@ export const useLiveRunStore = create<LiveRunState>((set) => ({
 
   stop: (chatId) =>
     update(set, chatId, { status: "stopping" }),
+
+  setStatus: (chatId, status) =>
+    update(set, chatId, { status }),
 
   setReconnecting: (chatId, isReconnecting) =>
     update(set, chatId, { isReconnecting }),
@@ -104,7 +109,11 @@ export const useLiveRunStore = create<LiveRunState>((set) => ({
           thinkingStartedAt = metadata.thinkingStartedAt;
         }
       }
-      return { runs: { ...s.runs, [chatId]: { ...run, ...metadata, thinkingStartedAt } } };
+      // Once we've optimistically moved to "stopping", don't let a late in-flight
+      // metadata update (e.g. still "working") bounce the status back.
+      const status =
+        run.status === "stopping" && !FINAL_STATUSES.includes(metadata.status) ? run.status : metadata.status;
+      return { runs: { ...s.runs, [chatId]: { ...run, ...metadata, status, thinkingStartedAt } } };
     }),
 
   setText: (chatId, text) => update(set, chatId, { text }),

@@ -16,7 +16,7 @@ export type StepItem = {
   credits?: number;
   model?: string;
   error?: SafeError | string;
-  output?: unknown;
+  assets?: ArtifactAsset[];
 };
 
 export type ArtifactAsset = {

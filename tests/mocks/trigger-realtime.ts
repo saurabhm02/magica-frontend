@@ -37,16 +37,21 @@ export function emitError(runId: string, error: Error) {
   notify();
 }
 
+// Matches the real hook: disabled only when `enabled` is explicitly false.
+function isEnabled(options?: { enabled?: boolean }) {
+  return options?.enabled !== false;
+}
+
 export function useRealtimeRun(runId?: string, options?: { enabled?: boolean }) {
   const metadata = useSyncExternalStore(subscribe, () => (runId ? metadataByRun.get(runId) : undefined));
   const error = useSyncExternalStore(subscribe, () => (runId ? errorByRun.get(runId) : undefined));
-  if (!options?.enabled || !runId) return { run: undefined, error: undefined };
+  if (!isEnabled(options) || !runId) return { run: undefined, error: undefined };
   return { run: metadata ? { id: runId, metadata } : undefined, error };
 }
 
 export function useRealtimeStream(runId?: string, _streamKey?: string, options?: { enabled?: boolean }) {
   const parts = useSyncExternalStore(subscribe, () => (runId ? (partsByRun.get(runId) ?? EMPTY_PARTS) : EMPTY_PARTS));
   const error = useSyncExternalStore(subscribe, () => (runId ? errorByRun.get(runId) : undefined));
-  if (!options?.enabled || !runId) return { parts: EMPTY_PARTS, error: undefined };
+  if (!isEnabled(options) || !runId) return { parts: EMPTY_PARTS, error: undefined };
   return { parts, error };
 }

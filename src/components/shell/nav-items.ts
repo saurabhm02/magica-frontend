@@ -18,14 +18,13 @@ export type NavItem = {
   disabled?: boolean;
 };
 
-
 export const navItems: NavItem[] = [
   { label: "New task", icon: Plus, href: "/" },
-  { label: "Tasks", icon: MessagesSquare },
+  { label: "Tasks", icon: MessagesSquare, href: "/tasks" },
   { label: "Projects", icon: FolderOpen, disabled: true },
   { label: "Scheduled", icon: CalendarClock, disabled: true },
-  { label: "Library", icon: LibraryBig, disabled: true },
-  { label: "Tools", icon: Blocks, disabled: true },
+  { label: "Library", icon: LibraryBig, href: "/library" },
+  { label: "Tools", icon: Blocks, href: "/tools" },
   { label: "API / MCP", icon: Plug, disabled: true },
   { label: "Help & Support", icon: CircleHelp, disabled: true },
   { label: "Unfair Advantage", icon: Sparkles, disabled: true },

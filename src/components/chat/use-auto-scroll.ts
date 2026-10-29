@@ -4,8 +4,7 @@ import { useEffect, useRef } from "react";
 
 const BOTTOM_THRESHOLD_PX = 48;
 
-// Sticks the container to the bottom as its content grows (new messages, streaming
-// text), unless the user has scrolled up — then it leaves them where they are.
+
 export function useAutoScroll() {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);

@@ -16,7 +16,7 @@ function ComposerProvider({
 }: {
   children: React.ReactNode;
   onSubmit?: (value: string) => void | Promise<void>;
-  onStop?: () => void;
+  onStop?: () => void | Promise<void>;
   disabled?: boolean;
 }) {
   const [value, setValue] = useState("");
@@ -36,9 +36,19 @@ function ComposerProvider({
     }
   };
 
+  const stop = async () => {
+    if (!onStop) return;
+    setError(null);
+    try {
+      await onStop();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    }
+  };
+
   return (
     <ComposerContext.Provider
-      value={{ value, setValue, planMode, togglePlanMode: () => setPlanMode((p) => !p), disabled, error, submit, onStop }}
+      value={{ value, setValue, planMode, togglePlanMode: () => setPlanMode((p) => !p), disabled, error, submit, stop }}
     >
       {children}
     </ComposerContext.Provider>
@@ -88,7 +98,7 @@ function ComposerTextarea() {
 }
 
 function ComposerActions() {
-  const { planMode, togglePlanMode, submit, onStop, value, disabled } = useComposer();
+  const { planMode, togglePlanMode, submit, stop, value, disabled } = useComposer();
 
   return (
     <div className="flex items-center justify-between">
@@ -105,7 +115,7 @@ function ComposerActions() {
         <IconButton
           aria-label="Stop"
           type="button"
-          onClick={onStop}
+          onClick={stop}
           className="bg-[#dc2626] text-white hover:bg-red-700"
         >
           <Square className="h-3 w-3 fill-current" />

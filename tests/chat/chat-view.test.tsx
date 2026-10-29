@@ -199,7 +199,7 @@ describe("ChatView", () => {
     expect(screen.queryByText("Working 0s")).not.toBeInTheDocument();
   });
 
-  it("stop -> cancelled state", async () => {
+  it("stopping a run shows the interrupted card with a Retry button, and the composer is usable right away", async () => {
     const items = fakeServer();
     let cancelled = false;
     server.use(
@@ -221,15 +221,7 @@ describe("ChatView", () => {
     const stopBtn = screen.getByRole("button", { name: "Stop" });
     expect(stopBtn).toBeInTheDocument();
 
-    // Click stop
-    await act(async () => {
-      fireEvent.click(stopBtn);
-    });
-
-    expect(cancelled).toBe(true);
-    expect(await screen.findByText("Stopping…")).toBeInTheDocument();
-
-    // The run finalizes as cancelled
+    // The server saves the cancelled reply as soon as the cancel request lands.
     items.unshift(
       message({
         id: "m-assistant",
@@ -238,15 +230,42 @@ describe("ChatView", () => {
         content: [{ type: "text", text: "Some partial text" }],
       }),
     );
+
     await act(async () => {
-      emitMetadata("run_trigger1", { status: "cancelled", thinkingStartedAt: now });
+      fireEvent.click(stopBtn);
     });
 
-    expect(await screen.findByText("Stopped")).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(cancelled).toBe(true);
+    expect(await screen.findByText("Response was interrupted")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(screen.getAllByText("Some partial text")).toHaveLength(1);
+
+    // Composer is usable right away
+    expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
   });
 
-  it("realtime error -> falls back to REST and shows the final message once", async () => {
+  it("a failed cancel request goes back to the working status and shows an inline error", async () => {
+    fakeServer();
+    server.use(http.post(cancelUrl, () => HttpResponse.json({ error: { code: "INTERNAL", message: "boom", retryable: true, traceId: "t" } }, { status: 500 })));
+
+    const { textarea } = renderChatView();
+    await send(textarea, "hello");
+
+    await act(async () => {
+      emitMetadata("run_trigger1", { status: "working", thinkingStartedAt: now });
+      emitTextPart("run_trigger1", "Some partial text");
+    });
+
+    const stopBtn = screen.getByRole("button", { name: "Stop" });
+    await act(async () => fireEvent.click(stopBtn));
+
+    expect(await screen.findByText("Couldn't stop. Try again.")).toBeInTheDocument();
+    // Back to "Working", the Stop button is still shown (run still active)
+    expect(screen.getByText(/Working/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
+  });
+
+  it("a realtime error refetches messages and clears the live bubble once the run is gone", async () => {
     const items = fakeServer();
     const { textarea } = renderChatView();
     await send(textarea, "hello");
@@ -257,15 +276,7 @@ describe("ChatView", () => {
     });
     expect(await screen.findByText("streaming text")).toBeInTheDocument();
 
-    // Simulate realtime error (connection drop)
-    await act(async () => {
-      emitError("run_trigger1", new Error("SSE connection dropped"));
-    });
-
-    // Shows Reconnecting… non-blocking indicator
-    expect(await screen.findByText("Reconnecting…")).toBeInTheDocument();
-
-    // Server REST returns completed message and run completes
+    // The server already finished and saved the reply by the time we notice the drop.
     items.unshift(
       message({
         id: "m-assistant",
@@ -275,16 +286,88 @@ describe("ChatView", () => {
       }),
     );
 
-    // Active run returns null when polled
-    server.use(http.get(activeRunUrl, () => HttpResponse.json(null)));
-
-    // Emit completed run
+    // Simulate realtime error (connection drop). active-run already returns null (fakeServer
+    // default), so the very first poll finds the run is gone and finalizes right away.
     await act(async () => {
-      emitMetadata("run_trigger1", { status: "complete", thinkingStartedAt: now });
+      emitError("run_trigger1", new Error("SSE connection dropped"));
     });
 
-    // Shows final message once
-    await waitFor(() => expect(screen.queryByText("Reconnecting…")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText(/Working|Thinking/)).not.toBeInTheDocument());
     expect(screen.getAllByText("streaming text")).toHaveLength(1);
+  });
+
+  it("a realtime error resubscribes and keeps receiving live updates while the run is still active", async () => {
+    const items = fakeServer();
+    const { textarea } = renderChatView();
+    await send(textarea, "hello");
+
+    await act(async () => {
+      emitMetadata("run_trigger1", { status: "working", thinkingStartedAt: now });
+      emitTextPart("run_trigger1", "streaming text");
+    });
+    expect(await screen.findByText("streaming text")).toBeInTheDocument();
+
+    // Only once the connection actually drops does active-run start reporting the (new) run.
+    server.use(
+      http.get(activeRunUrl, () =>
+        HttpResponse.json({ runId: "db-run-1", triggerRunId: "run_trigger2", accessToken: "tok2", status: "running" }),
+      ),
+    );
+    await act(async () => emitError("run_trigger1", new Error("SSE connection dropped")));
+
+    // Resubscribed to the run active-run reported, and receives its live updates
+    await act(async () => {
+      emitMetadata("run_trigger2", { status: "working", thinkingStartedAt: now });
+      emitTextPart("run_trigger2", "resumed text");
+    });
+    expect(await screen.findByText("resumed text")).toBeInTheDocument();
+
+    items.unshift(
+      message({
+        id: "m-assistant",
+        role: "assistant",
+        status: "complete",
+        content: [{ type: "text", text: "resumed text" }],
+      }),
+    );
+    server.use(http.get(activeRunUrl, () => HttpResponse.json(null)));
+    await act(async () => emitMetadata("run_trigger2", { status: "complete", thinkingStartedAt: now }));
+    await waitFor(() => expect(screen.queryByText(/Working/)).not.toBeInTheDocument());
+  });
+
+  it("never reconnects to a triggerRunId that already finalized", async () => {
+    const items = fakeServer();
+    const { textarea } = renderChatView();
+    await send(textarea, "hello");
+
+    await act(async () => emitMetadata("run_trigger1", { status: "working", thinkingStartedAt: now }));
+
+    items.unshift(
+      message({ id: "m-assistant", role: "assistant", status: "complete", content: [{ type: "text", text: "done" }] }),
+    );
+    await act(async () => emitMetadata("run_trigger1", { status: "complete", thinkingStartedAt: now }));
+    await waitFor(() => expect(screen.queryByText(/Thinking|Working/)).not.toBeInTheDocument());
+
+    // A stray late error on the already-finalized run must not resurrect the live bubble
+    await act(async () => emitError("run_trigger1", new Error("late error")));
+    expect(screen.queryByText("Reconnecting…")).not.toBeInTheDocument();
+  });
+
+  it("doesn't reconnect right after a run finalizes", async () => {
+    const items = fakeServer();
+    const { textarea } = renderChatView();
+    await send(textarea, "hello");
+
+    await act(async () => emitMetadata("run_trigger1", { status: "working", thinkingStartedAt: now }));
+
+    items.unshift(
+      message({ id: "m-assistant", role: "assistant", status: "complete", content: [{ type: "text", text: "done" }] }),
+    );
+    await act(async () => emitMetadata("run_trigger1", { status: "complete", thinkingStartedAt: now }));
+
+    await waitFor(() => expect(useLiveRunStore.getState().runs[chatId]).toBeUndefined());
+    // If the active-run cache hadn't been cleared before clear(), reload-recovery would
+    // reconnect right here and show Thinking/Working again.
+    expect(screen.queryByText(/Thinking|Working/)).not.toBeInTheDocument();
   });
 });

@@ -4,7 +4,6 @@ import { useClerk, useUser } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { LogOut, MoreVertical } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useLiveRunStore } from "@/stores/live-run.store";
 import { useUiStore } from "@/stores/ui.store";
@@ -13,7 +12,6 @@ export function UserCard() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const queryClient = useQueryClient();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -34,15 +32,14 @@ export function UserCard() {
   if (!user) return null;
 
   const handleLogout = async () => {
+    await signOut({ redirectUrl: "/sign-in" });
     queryClient.clear();
     useLiveRunStore.getState().reset();
     useUiStore.getState().reset();
-    await signOut({ redirectUrl: "/sign-in" });
-    router.push("/sign-in");
   };
 
-  const displayName = user.fullName ?? user.username ?? "Account";
   const email = user.primaryEmailAddress?.emailAddress;
+  const displayName = user.fullName || email?.split("@")[0] || "Account";
 
   return (
     <div className="relative" ref={menuRef}>
@@ -54,13 +51,19 @@ export function UserCard() {
         className="flex w-full items-center justify-between rounded-8 p-1.5 hover:bg-surface-secondary/70 transition"
       >
         <div className="flex items-center gap-2 min-w-0">
-          <Image
-            src={user.imageUrl}
-            alt=""
-            width={28}
-            height={28}
-            className="size-7 shrink-0 rounded-full"
-          />
+          {user.imageUrl ? (
+            <Image
+              src={user.imageUrl}
+              alt=""
+              width={28}
+              height={28}
+              className="size-7 shrink-0 rounded-full"
+            />
+          ) : (
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-tertiary text-sm font-medium text-text-primary">
+              {displayName.charAt(0).toUpperCase()}
+            </span>
+          )}
           <span className="truncate text-sm text-text-primary font-medium">{displayName}</span>
         </div>
         <MoreVertical className="size-4 shrink-0 text-text-tertiary" />

@@ -1,14 +1,38 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Check, CheckCircle2, Copy, ExternalLink, Image, Video, X } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  CheckCircle2,
+  Clock,
+  Copy,
+  ExternalLink,
+  Image,
+  type LucideIcon,
+  Loader2,
+  Video,
+  X,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import { formatCredits } from "@/lib/constants";
+import type { StepItem } from "@/lib/types";
 import { useUiStore } from "@/stores/ui.store";
+
+const STEP_STATUS: Record<StepItem["status"], { label: string; className: string; Icon: LucideIcon }> = {
+  pending: { label: "Pending", className: "text-text-secondary", Icon: Clock },
+  running: { label: "Running", className: "text-text-secondary", Icon: Loader2 },
+  succeeded: { label: "Completed", className: "text-success", Icon: CheckCircle2 },
+  failed: { label: "Failed", className: "text-error", Icon: AlertCircle },
+  cancelled: { label: "Cancelled", className: "text-text-secondary", Icon: AlertCircle },
+};
 
 export function ArtifactPanel() {
   const artifactPanel = useUiStore((s) => s.artifactPanel);
   const closeArtifact = useUiStore((s) => s.closeArtifact);
   const [copied, setCopied] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -18,27 +42,17 @@ export function ArtifactPanel() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [closeArtifact]);
 
+  useEffect(() => {
+    closeArtifact();
+  }, [pathname, closeArtifact]);
+
   if (!artifactPanel) return null;
 
   const { step, asset } = artifactPanel;
 
-  let mediaUrl = asset?.url;
-  let mediaType = asset?.type || "image";
-
-  if (!mediaUrl && step?.output && typeof step.output === "object") {
-    const rec = step.output as Record<string, unknown>;
-    if (typeof rec.image_url === "string") {
-      mediaUrl = rec.image_url;
-      mediaType = "image";
-    } else if (Array.isArray(rec.images) && rec.images[0]) {
-      const first = rec.images[0];
-      mediaUrl = typeof first === "string" ? first : (first as { url?: string }).url;
-      mediaType = "image";
-    } else if (typeof rec.video_url === "string") {
-      mediaUrl = rec.video_url;
-      mediaType = "video";
-    }
-  }
+  const stepMedia = step?.assets?.[0];
+  const mediaUrl = asset?.url ?? stepMedia?.url;
+  const mediaType = asset?.type ?? stepMedia?.type ?? "image";
 
   const title = step?.label || asset?.title || "Artifact details";
   const modelName =
@@ -46,6 +60,7 @@ export function ArtifactPanel() {
     step?.fields?.find((f) => f.label.toLowerCase().includes("model"))?.value ||
     "Model";
   const creditsStr = step?.credits !== undefined ? `${formatCredits(step.credits)} credits` : undefined;
+  const { label: statusLabel, className: statusClassName, Icon: StatusIcon } = STEP_STATUS[step?.status ?? "succeeded"];
 
   const handleCopy = async () => {
     if (!mediaUrl) return;
@@ -95,9 +110,9 @@ export function ArtifactPanel() {
 
           <div>
             <span className="text-text-secondary block mb-0.5">Status</span>
-            <div className="flex items-center gap-1.5 text-success font-medium">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>Completed</span>
+            <div className={cn("flex items-center gap-1.5 font-medium", statusClassName)}>
+              <StatusIcon className={cn("h-3.5 w-3.5", step?.status === "running" && "animate-spin")} />
+              <span>{statusLabel}</span>
             </div>
           </div>
         </div>

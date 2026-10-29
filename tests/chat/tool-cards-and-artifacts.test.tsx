@@ -4,10 +4,15 @@ import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@clerk/nextjs", () => ({ useAuth: () => ({ getToken: async () => "token" }) }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+const mockPathname = { current: "/chat/c-test-tools" };
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => mockPathname.current,
+}));
 
 import { ArtifactPanel } from "@/components/artifacts/artifact-panel";
-import { AssistantText, ChatMessages } from "@/components/chat/chat-messages";
+import { AssistantText } from "@/components/chat/assistant-text";
+import { ChatMessages } from "@/components/chat/chat-messages";
 import { LiveBubble } from "@/components/chat/live-bubble";
 import { MediaAsset } from "@/components/chat/media-asset";
 import { StepList } from "@/components/tools/step-list";
@@ -130,22 +135,80 @@ describe("StepList & StepRow", () => {
       />,
     );
 
-    // Collapsed summary line
     const summaryBtn = screen.getByRole("button", { name: /Looked up a model, generated an image/i });
     expect(summaryBtn).toBeInTheDocument();
-
-    // Step rows are initially hidden
     expect(screen.queryByText("Checking image model settings")).not.toBeInTheDocument();
 
-    // Clicking expands the step card
     fireEvent.click(summaryBtn);
     expect(screen.getByText("Checking image model settings")).toBeInTheDocument();
     expect(screen.getByText("Generating your red apple image")).toBeInTheDocument();
   });
+
+  it("marks the row's toggle button as aria-expanded", () => {
+    render(
+      <StepList
+        isLive={false}
+        status="complete"
+        steps={[
+          {
+            id: "s1",
+            name: "gpt_image_2",
+            renderKey: "image-result",
+            status: "succeeded",
+            label: "Generating your red apple image",
+            doneLabel: "generated an image",
+          },
+        ]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Generated an image" }));
+
+    const toggle = screen.getByRole("button", { name: "Toggle details" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+  });
+});
+
+describe("StepList status text", () => {
+  it("shows 'Waiting for you' when the run is waiting on the user", () => {
+    render(<StepList isLive={true} status="waiting" steps={[]} />);
+    expect(screen.getByText("Waiting for you")).toBeInTheDocument();
+  });
+
+  it("shows 'Stopping generation…' while a run is being cancelled", () => {
+    render(<StepList isLive={true} status="stopping" steps={[]} />);
+    expect(screen.getByText("Stopping generation…")).toBeInTheDocument();
+  });
 });
 
 describe("Side Panel / Artifact Panel", () => {
-  it("shows step fields and output media in side panel when step is clicked", () => {
+  beforeEach(() => {
+    mockPathname.current = "/chat/c-test-tools";
+  });
+
+  it("closes when the chat route changes", () => {
+    const { rerender } = render(
+      <div>
+        <MediaAsset asset={{ type: "image", url: "https://example.com/apple.png" }} />
+        <ArtifactPanel />
+      </div>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "View image" }));
+    expect(screen.getByTestId("artifact-panel")).toBeInTheDocument();
+
+    mockPathname.current = "/chat/other-chat";
+    rerender(
+      <div>
+        <MediaAsset asset={{ type: "image", url: "https://example.com/apple.png" }} />
+        <ArtifactPanel />
+      </div>,
+    );
+    expect(screen.queryByTestId("artifact-panel")).not.toBeInTheDocument();
+  });
+
+  it("shows step fields and media in the side panel when a step is clicked", () => {
     render(
       <div>
         <StepList
@@ -166,7 +229,7 @@ describe("Side Panel / Artifact Panel", () => {
                 { label: "Prompt", value: "a red apple" },
                 { label: "Size", value: "1024x1024" },
               ],
-              output: { images: ["https://example.com/panel-apple.png"] },
+              assets: [{ type: "image", url: "https://example.com/panel-apple.png" }],
             },
           ]}
         />
@@ -174,7 +237,7 @@ describe("Side Panel / Artifact Panel", () => {
       </div>,
     );
 
-    fireEvent.click(screen.getByTestId("step-row-image-result"));
+    fireEvent.click(within(screen.getByTestId("step-row-image-result")).getByRole("button", { name: "Generating your red apple imagea red apple" }));
 
     const panel = screen.getByTestId("artifact-panel");
     expect(panel).toBeInTheDocument();
@@ -189,6 +252,31 @@ describe("Side Panel / Artifact Panel", () => {
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByTestId("artifact-panel")).not.toBeInTheDocument();
+  });
+
+  it("shows the step's real status in the side panel", () => {
+    render(
+      <div>
+        <StepList
+          isLive={true}
+          status="working"
+          steps={[
+            {
+              id: "s-running",
+              name: "gpt_image_2",
+              renderKey: "image-result",
+              status: "running",
+              label: "Generating",
+              startedAt: now,
+            },
+          ]}
+        />
+        <ArtifactPanel />
+      </div>,
+    );
+
+    fireEvent.click(within(screen.getByTestId("step-row-image-result")).getByRole("button", { name: "Generating" }));
+    expect(within(screen.getByTestId("artifact-panel")).getByText("Running")).toBeInTheDocument();
   });
 });
 
@@ -210,8 +298,13 @@ describe("MediaAsset & Markdown", () => {
     const img = screen.getByRole("img", { name: "A red apple" });
     expect(img).toHaveAttribute("src", "https://example.com/apple.png");
 
-    fireEvent.click(screen.getByTestId("media-asset"));
+    fireEvent.click(screen.getByRole("button", { name: "A red apple" }));
     expect(screen.getByTestId("artifact-panel")).toBeInTheDocument();
+  });
+
+  it("labels the download button 'Download video' for video assets", () => {
+    render(<MediaAsset asset={{ type: "video", url: "https://example.com/clip.mp4" }} />);
+    expect(screen.getByRole("button", { name: "Download video" })).toBeInTheDocument();
   });
 
   it("renders markdown formatting and inline markdown images", () => {
@@ -248,6 +341,25 @@ describe("LiveBubble", () => {
 
     render(<LiveBubble chatId={chatId} />);
     expect(screen.getByText(/Working/)).toBeInTheDocument();
+  });
+
+  it("shows a non-blocking Reconnecting indicator while isReconnecting is set", () => {
+    useLiveRunStore.setState({
+      runs: {
+        [chatId]: {
+          status: "working",
+          text: "partial",
+          thinkingStartedAt: now,
+          tools: [],
+          assets: [],
+          isReconnecting: true,
+        },
+      },
+    });
+
+    render(<LiveBubble chatId={chatId} />);
+    expect(screen.getByText("Reconnecting…")).toBeInTheDocument();
+    expect(screen.getByText("partial")).toBeInTheDocument();
   });
 
   it("shows Thinking right after send", () => {
@@ -303,9 +415,7 @@ describe("ChatMessages with saved tool content blocks", () => {
       ],
     };
 
-    server.use(
-      http.get(messagesUrl, () => HttpResponse.json({ items: [savedMessage], nextCursor: null })),
-    );
+    server.use(http.get(messagesUrl, () => HttpResponse.json({ items: [savedMessage], nextCursor: null })));
 
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(

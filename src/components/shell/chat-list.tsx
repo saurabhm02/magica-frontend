@@ -1,9 +1,12 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import type { Chat } from "@/contracts/chat";
+import { FINAL_STATUSES } from "@/lib/constants";
 import { useChats } from "@/queries/chats";
+import { useLiveRunStore } from "@/stores/live-run.store";
 
 export function ChatList() {
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useChats();
@@ -64,18 +67,29 @@ export function ChatList() {
   );
 }
 
+function ChatRow({ chat }: { chat: Chat }) {
+  const isActive = useLiveRunStore((s) => {
+    const run = s.runs[chat.id];
+    return !!run && !FINAL_STATUSES.includes(run.status);
+  });
+
+  return (
+    <Link
+      href={`/chat/${chat.id}`}
+      className="flex items-center justify-between gap-2 truncate rounded-10 px-2 py-2 text-sm text-text-primary hover:bg-surface-hover"
+    >
+      <span className="truncate">{chat.title}</span>
+      {isActive && <Loader2 aria-label="Run in progress" className="h-3.5 w-3.5 shrink-0 animate-spin text-text-tertiary" />}
+    </Link>
+  );
+}
+
 function ChatSection({ label, chats }: { label?: string; chats: Chat[] }) {
   return (
     <div className="flex flex-col gap-1">
       {label && <p className="px-2 text-xs text-text-tertiary">{label}</p>}
       {chats.map((chat) => (
-        <Link
-          key={chat.id}
-          href={`/chat/${chat.id}`}
-          className="truncate rounded-10 px-2 py-2 text-sm text-text-primary hover:bg-surface-hover"
-        >
-          {chat.title}
-        </Link>
+        <ChatRow key={chat.id} chat={chat} />
       ))}
     </div>
   );
