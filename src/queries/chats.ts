@@ -9,12 +9,12 @@ import { useAuthedApi } from "./use-authed-api";
 
 type ChatsPages = InfiniteData<ListChatsResponse>;
 
-export function useChats() {
+export function useChats(q?: string) {
   const withAuth = useAuthedApi();
 
   return useInfiniteQuery({
-    queryKey: queryKeys.chats,
-    queryFn: ({ pageParam }: { pageParam?: string }) => withAuth((token) => listChats(token, { cursor: pageParam })),
+    queryKey: q ? queryKeys.chatsSearch(q) : queryKeys.chats,
+    queryFn: ({ pageParam }: { pageParam?: string }) => withAuth((token) => listChats(token, { cursor: pageParam, q })),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });

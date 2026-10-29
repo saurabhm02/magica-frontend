@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronDown, Gem } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { formatCredits } from "@/lib/constants";
 import { useCredits } from "@/queries/credits";
+import { CreditsSparkles } from "@/components/icons/credits-sparkles";
 import { MobileSidebar } from "./mobile-sidebar";
 
 export function TopBar() {
@@ -26,7 +27,7 @@ export function TopBar() {
         data-testid="top-bar-credits"
         className="flex h-8 items-center gap-1.5 rounded-full bg-surface-secondary px-3 text-sm text-text-primary"
       >
-        <Gem className="size-4 text-text-secondary" />
+        <CreditsSparkles className="size-4 text-text-secondary" />
         <span>{balanceText}</span>
       </div>
     </header>

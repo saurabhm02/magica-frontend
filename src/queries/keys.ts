@@ -3,6 +3,12 @@ export const queryKeys = {
   credits: ["credits"] as const,
   creditLedger: ["creditLedger"] as const,
   chats: ["chats"] as const,
+  chatsSearch: (q: string) => ["chats", "search", q] as const,
   messages: (chatId: string) => ["messages", chatId] as const,
   activeRun: (chatId: string) => ["activeRun", chatId] as const,
+  tools: ["tools"] as const,
+  toolDetail: (name: string) => ["tools", name] as const,
+  toolRuns: (name: string) => ["tools", name, "runs"] as const,
+  toolRun: (runId: string) => ["toolRuns", runId] as const,
+  assets: ["assets"] as const,
 };

@@ -5,6 +5,7 @@ const EMPTY_PARTS: string[] = [];
 const metadataByRun = new Map<string, Record<string, unknown>>();
 const partsByRun = new Map<string, string[]>();
 const errorByRun = new Map<string, Error>();
+const finishedByRun = new Set<string>();
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -20,6 +21,7 @@ export function resetRealtimeMock() {
   metadataByRun.clear();
   partsByRun.clear();
   errorByRun.clear();
+  finishedByRun.clear();
 }
 
 export function emitMetadata(runId: string, metadata: Record<string, unknown>) {
@@ -37,6 +39,11 @@ export function emitError(runId: string, error: Error) {
   notify();
 }
 
+export function emitFinished(runId: string) {
+  finishedByRun.add(runId);
+  notify();
+}
+
 // Matches the real hook: disabled only when `enabled` is explicitly false.
 function isEnabled(options?: { enabled?: boolean }) {
   return options?.enabled !== false;
@@ -44,9 +51,11 @@ function isEnabled(options?: { enabled?: boolean }) {
 
 export function useRealtimeRun(runId?: string, options?: { enabled?: boolean }) {
   const metadata = useSyncExternalStore(subscribe, () => (runId ? metadataByRun.get(runId) : undefined));
+  const finished = useSyncExternalStore(subscribe, () => (runId ? finishedByRun.has(runId) : false));
   const error = useSyncExternalStore(subscribe, () => (runId ? errorByRun.get(runId) : undefined));
   if (!isEnabled(options) || !runId) return { run: undefined, error: undefined };
-  return { run: metadata ? { id: runId, metadata } : undefined, error };
+  if (!metadata && !finished) return { run: undefined, error };
+  return { run: { id: runId, metadata, finishedAt: finished ? new Date().toISOString() : undefined }, error };
 }
 
 export function useRealtimeStream(runId?: string, _streamKey?: string, options?: { enabled?: boolean }) {

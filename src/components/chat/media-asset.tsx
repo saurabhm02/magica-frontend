@@ -22,22 +22,23 @@ export function MediaAsset({ asset }: { asset: ArtifactAsset }) {
   return (
     <div
       data-testid="media-asset"
-      className="group relative my-3 max-w-[460px] w-full overflow-hidden rounded-16 border border-border-secondary bg-surface-secondary transition hover:border-text-secondary"
+      className="group relative my-3 w-fit max-w-[460px] overflow-hidden rounded-16 border border-border-secondary bg-surface-secondary transition hover:border-text-secondary"
     >
       {isVideo ? (
-        <video src={asset.url} controls className="max-h-[460px] w-full rounded-16" />
+        <video src={asset.url} controls className="block h-auto max-h-[460px] w-auto max-w-full" />
       ) : (
         <button
           type="button"
           aria-label={asset.title || "View image"}
           onClick={() => openMediaArtifact(asset)}
-          className="block w-full focus:outline-none focus-visible:ring-1 focus-visible:ring-text-secondary"
+          className="block focus:outline-none focus-visible:ring-1 focus-visible:ring-text-secondary"
         >
+          {/* Natural aspect ratio: a 9:16 crop must stay tall, not be cut to fit the box. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={asset.url}
             alt={asset.title || "Generated image"}
-            className="max-h-[460px] w-full rounded-16 object-cover"
+            className="block h-auto max-h-[460px] w-auto max-w-full"
             loading="lazy"
           />
         </button>

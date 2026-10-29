@@ -281,6 +281,15 @@ describe("Side Panel / Artifact Panel", () => {
 });
 
 describe("MediaAsset & Markdown", () => {
+  it("keeps the image's own shape instead of cropping it to fit", () => {
+    render(<MediaAsset asset={{ type: "image", url: "https://example.com/story.png", title: "Story" }} />);
+
+    const img = screen.getByRole("img", { name: "Story" });
+    expect(img).not.toHaveClass("object-cover");
+    expect(img).not.toHaveClass("w-full");
+    expect(img).toHaveClass("w-auto", "h-auto", "max-h-[460px]");
+  });
+
   it("renders image asset as img tag and opens artifact panel on click", () => {
     render(
       <div>

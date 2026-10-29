@@ -2,26 +2,15 @@
 
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
 import type { Chat } from "@/contracts/chat";
 import { FINAL_STATUSES } from "@/lib/constants";
+import { useInfiniteScroll } from "@/lib/use-infinite-scroll";
 import { useChats } from "@/queries/chats";
 import { useLiveRunStore } from "@/stores/live-run.store";
 
 export function ChatList() {
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useChats();
-  const sentinelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el || !hasNextPage) return;
-
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry?.isIntersecting) fetchNextPage();
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasNextPage, fetchNextPage]);
+  const sentinelRef = useInfiniteScroll(hasNextPage, fetchNextPage);
 
   if (isPending) {
     return (

@@ -3,6 +3,7 @@
 import { PanelLeftClose, Search } from "lucide-react";
 import { formatCredits } from "@/lib/constants";
 import { useCredits } from "@/queries/credits";
+import { CreditsSparkles } from "@/components/icons/credits-sparkles";
 import { IconButton } from "@/components/ui/icon-button";
 import { ChatList } from "./chat-list";
 import { navItems } from "./nav-items";
@@ -39,7 +40,10 @@ export function SidebarContent({ onCollapse }: { onCollapse?: () => void }) {
 
       <div className="border-t border-border-tertiary px-3 py-2 flex flex-col gap-2">
         <div className="flex items-center justify-between px-1 text-sm">
-          <span className="text-text-secondary">Available Credits</span>
+          <span className="flex items-center gap-1.5 text-text-secondary">
+            <CreditsSparkles className="size-4" />
+            Available Credits
+          </span>
           <span className="text-text-primary font-medium">
             {credits ? formatCredits(credits.balance) : "—"}
           </span>

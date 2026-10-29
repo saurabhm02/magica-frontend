@@ -4,7 +4,8 @@ import { useClerk, useUser } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { LogOut, MoreVertical } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useClickOutside } from "@/lib/use-click-outside";
 import { useLiveRunStore } from "@/stores/live-run.store";
 import { useUiStore } from "@/stores/ui.store";
 
@@ -14,20 +15,7 @@ export function UserCard() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [open]);
+  useClickOutside(menuRef, open, () => setOpen(false));
 
   if (!user) return null;
 
