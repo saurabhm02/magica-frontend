@@ -39,6 +39,13 @@ export function LiveBubble({ chatId }: { chatId: string }) {
   return (
     <div className="px-6 py-3" aria-live="polite">
       <div className="flex flex-col items-start gap-3">
+        {liveRun.isReconnecting && (
+          <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <span>Reconnecting…</span>
+          </div>
+        )}
+
         <StepList
           steps={steps}
           isLive={true}
@@ -56,6 +63,10 @@ export function LiveBubble({ chatId }: { chatId: string }) {
               <MediaAsset key={asset.url || i} asset={asset} />
             ))}
           </div>
+        )}
+
+        {liveRun.status === "cancelled" && (
+          <p className="text-sm text-text-secondary">Stopped</p>
         )}
       </div>
     </div>

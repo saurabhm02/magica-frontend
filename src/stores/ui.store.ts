@@ -10,6 +10,7 @@ type UiState = {
   openStepArtifact: (step: StepItem, asset?: ArtifactAsset) => void;
   openMediaArtifact: (asset: ArtifactAsset) => void;
   closeArtifact: () => void;
+  reset: () => void;
 };
 
 export const useUiStore = create<UiState>((set) => ({
@@ -21,4 +22,5 @@ export const useUiStore = create<UiState>((set) => ({
   openStepArtifact: (step, asset) => set({ artifactPanel: { step, asset } }),
   openMediaArtifact: (asset) => set({ artifactPanel: { asset } }),
   closeArtifact: () => set({ artifactPanel: null }),
+  reset: () => set({ sidebarCollapsed: false, mobileDrawerOpen: false, artifactPanel: null }),
 }));

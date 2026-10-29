@@ -1,10 +1,10 @@
 "use client";
 
-import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData, type QueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData, type QueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import type { ListMessagesResponse, SendMessageRequest } from "@/contracts/api";
 import type { Message } from "@/contracts/message";
-import { listMessages, sendMessage } from "@/services/messages.service";
+import { cancelRun, getActiveRun, listMessages, sendMessage } from "@/services/messages.service";
 import { queryKeys } from "./keys";
 import { useAuthedApi } from "./use-authed-api";
 
@@ -63,5 +63,30 @@ export function useSendMessage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.chats });
     },
     onSettled: (_data, _error, vars) => queryClient.invalidateQueries({ queryKey: queryKeys.messages(vars.chatId) }),
+  });
+}
+
+export function useActiveRun(chatId: string) {
+  const withAuth = useAuthedApi();
+  return useQuery({
+    queryKey: queryKeys.activeRun(chatId),
+    queryFn: () => withAuth((token) => getActiveRun(token, chatId)),
+    enabled: !!chatId,
+  });
+}
+
+export function useCancelRun() {
+  const withAuth = useAuthedApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ chatId, runId }: { chatId: string; runId: string }) =>
+      withAuth((token) => cancelRun(token, chatId, runId)),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.messages(vars.chatId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activeRun(vars.chatId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.credits });
+      queryClient.invalidateQueries({ queryKey: queryKeys.creditLedger });
+    },
   });
 }

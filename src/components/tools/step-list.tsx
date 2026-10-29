@@ -25,7 +25,9 @@ export function StepList({ steps, isLive, status, thinkingStartedAt }: StepListP
 
   const isThinking = isLive && (status === "queued" || status === "thinking");
   const isWorking = isLive && status === "working";
-  const isComplete = !isLive || status === "complete";
+  const isStopping = isLive && status === "stopping";
+  const isCancelled = status === "cancelled";
+  const isComplete = !isLive || status === "complete" || isCancelled;
 
   const elapsedThinking = useElapsedTime(thinkingStartedAt, isThinking || isWorking);
 
@@ -34,6 +36,15 @@ export function StepList({ steps, isLive, status, thinkingStartedAt }: StepListP
       <div className="flex items-center gap-1.5 text-sm text-text-secondary cursor-pointer select-none">
         <ChevronDown className="h-4 w-4" />
         <span>Thinking{elapsedThinking > 0 ? `… ${elapsedThinking}s` : ""}</span>
+      </div>
+    );
+  }
+
+  if (isStopping) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-text-secondary select-none py-1">
+        <AnimatedDots />
+        <span>Stopping…</span>
       </div>
     );
   }
@@ -73,7 +84,7 @@ export function StepList({ steps, isLive, status, thinkingStartedAt }: StepListP
           onClick={() => setSummaryExpanded((v) => !v)}
           className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition cursor-pointer select-none py-1"
         >
-          <span>{summaryText || "Completed steps"}</span>
+          <span>{isCancelled ? (summaryText ? `${summaryText} (Stopped)` : "Stopped") : (summaryText || "Completed steps")}</span>
           {summaryExpanded ? (
             <ChevronDown className="h-4 w-4 shrink-0" />
           ) : (
@@ -167,6 +178,12 @@ function StepRow({
           </button>
         </div>
       </div>
+
+      {step.status === "failed" && step.error && !expanded && (
+        <p className="mt-1.5 text-xs text-error">
+          {typeof step.error === "string" ? step.error : step.error.message}
+        </p>
+      )}
 
       {expanded && (
         <div className="mt-2.5 pt-2 border-t border-border-secondary/60 flex flex-col gap-1.5 text-xs">

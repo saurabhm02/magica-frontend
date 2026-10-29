@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/shell/sidebar";
 import { useUiStore } from "@/stores/ui.store";
 import { server } from "../mocks/server";
 
-vi.mock("@clerk/nextjs", () => ({ useUser: () => ({ user: null }), useAuth: () => ({ getToken: async () => "token" }) }));
+vi.mock("@clerk/nextjs", () => ({ useUser: () => ({ user: null }), useAuth: () => ({ getToken: async () => "token" }), useClerk: () => ({ signOut: vi.fn() }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 beforeEach(() => {

@@ -7,6 +7,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ContentBlock } from "@/contracts/content-blocks";
 import type { Message } from "@/contracts/message";
+import { formatCredits } from "@/lib/constants";
 import type { ArtifactAsset, StepItem } from "@/lib/types";
 import { useMessages } from "@/queries/messages";
 import { ApiError } from "@/services/api-client";
@@ -238,6 +239,8 @@ function MessageRow({
 
   const fullText = textBlocks.join("\n\n");
   const timeStr = formatMessageTime(message.createdAt);
+  const turnTotalCredits = steps.reduce((sum, s) => sum + (s.credits ?? 0), 0);
+  const formattedTurnCredits = turnTotalCredits > 0 ? `${formatCredits(turnTotalCredits)} credits` : undefined;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(fullText);
@@ -271,7 +274,7 @@ function MessageRow({
           >
             {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
-          <div className="flex items-center gap-2" />
+          {formattedTurnCredits && <span data-testid="message-credits">{formattedTurnCredits}</span>}
           {timeStr && <span>{timeStr}</span>}
         </div>
       )}
@@ -279,6 +282,21 @@ function MessageRow({
       {message.status === "failed" && (
         <div className="flex flex-col items-start gap-2">
           <p className="text-sm text-error">This reply failed.</p>
+          {precedingUserText && onRetry && (
+            <button
+              type="button"
+              onClick={() => onRetry(precedingUserText)}
+              className="text-sm text-text-primary underline"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
+
+      {message.status === "cancelled" && (
+        <div className="flex flex-col items-start gap-2">
+          <p className="text-sm text-text-secondary">Stopped</p>
           {precedingUserText && onRetry && (
             <button
               type="button"

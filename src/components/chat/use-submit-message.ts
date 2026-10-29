@@ -21,7 +21,9 @@ export function useSubmitMessage(chatId?: string) {
     start(targetChatId);
     const send = sendMessage
       .mutateAsync({ chatId: targetChatId, content, planMode: false })
-      .then(({ realtime }) => connect(targetChatId, { triggerRunId: realtime.runId, accessToken: realtime.accessToken }));
+      .then(({ runId, realtime }) =>
+        connect(targetChatId, { runId, triggerRunId: realtime.runId, accessToken: realtime.accessToken }),
+      );
 
     if (chatId) {
       await send.catch((error) => {

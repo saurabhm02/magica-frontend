@@ -264,7 +264,7 @@ describe("LiveBubble", () => {
     });
 
     render(<LiveBubble chatId={chatId} />);
-    expect(screen.getByText("Thinking")).toBeInTheDocument();
+    expect(screen.getByText(/Thinking/)).toBeInTheDocument();
   });
 });
 

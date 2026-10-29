@@ -10,6 +10,7 @@ type ComposerContextValue = {
   disabled: boolean;
   error: string | null;
   submit: () => void;
+  onStop?: () => void;
 };
 
 export const ComposerContext = createContext<ComposerContextValue | null>(null);

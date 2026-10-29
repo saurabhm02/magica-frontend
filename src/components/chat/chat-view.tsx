@@ -1,6 +1,7 @@
 "use client";
 
 import { ComposerActions, ComposerError, ComposerProvider, ComposerRoot, ComposerTextarea } from "@/components/composer/composer";
+import { useCancelRun } from "@/queries/messages";
 import { useLiveRun } from "@/realtime/use-live-run";
 import { useLiveRunStore } from "@/stores/live-run.store";
 import { useAutoScroll } from "./use-auto-scroll";
@@ -10,9 +11,21 @@ import { LiveBubble } from "./live-bubble";
 
 export function ChatView({ chatId }: { chatId: string }) {
   useLiveRun(chatId);
-  const runActive = useLiveRunStore((s) => !!s.runs[chatId] && s.runs[chatId].status !== "failed");
+  const liveRun = useLiveRunStore((s) => s.runs[chatId]);
+  const stop = useLiveRunStore((s) => s.stop);
+  const cancelRun = useCancelRun();
+  const runActive =
+    !!liveRun &&
+    liveRun.status !== "failed" &&
+    liveRun.status !== "cancelled";
   const submit = useSubmitMessage(chatId);
   const { containerRef, contentRef } = useAutoScroll();
+
+  const handleStop = () => {
+    if (!liveRun?.runId) return;
+    stop(chatId);
+    cancelRun.mutate({ chatId, runId: liveRun.runId });
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -23,7 +36,7 @@ export function ChatView({ chatId }: { chatId: string }) {
         </div>
       </div>
       <div className="px-6 pb-6">
-        <ComposerProvider onSubmit={submit} disabled={runActive}>
+        <ComposerProvider onSubmit={submit} onStop={handleStop} disabled={runActive}>
           <ComposerRoot>
             <ComposerTextarea />
             <ComposerActions />

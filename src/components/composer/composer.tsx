@@ -11,10 +11,12 @@ const MAX_TEXTAREA_HEIGHT = 384;
 function ComposerProvider({
   children,
   onSubmit,
+  onStop,
   disabled = false,
 }: {
   children: React.ReactNode;
   onSubmit?: (value: string) => void | Promise<void>;
+  onStop?: () => void;
   disabled?: boolean;
 }) {
   const [value, setValue] = useState("");
@@ -36,7 +38,7 @@ function ComposerProvider({
 
   return (
     <ComposerContext.Provider
-      value={{ value, setValue, planMode, togglePlanMode: () => setPlanMode((p) => !p), disabled, error, submit }}
+      value={{ value, setValue, planMode, togglePlanMode: () => setPlanMode((p) => !p), disabled, error, submit, onStop }}
     >
       {children}
     </ComposerContext.Provider>
@@ -86,7 +88,7 @@ function ComposerTextarea() {
 }
 
 function ComposerActions() {
-  const { planMode, togglePlanMode, submit, value, disabled } = useComposer();
+  const { planMode, togglePlanMode, submit, onStop, value, disabled } = useComposer();
 
   return (
     <div className="flex items-center justify-between">
@@ -103,6 +105,7 @@ function ComposerActions() {
         <IconButton
           aria-label="Stop"
           type="button"
+          onClick={onStop}
           className="bg-[#dc2626] text-white hover:bg-red-700"
         >
           <Square className="h-3 w-3 fill-current" />

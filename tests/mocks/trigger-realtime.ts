@@ -4,6 +4,7 @@ const EMPTY_PARTS: string[] = [];
 
 const metadataByRun = new Map<string, Record<string, unknown>>();
 const partsByRun = new Map<string, string[]>();
+const errorByRun = new Map<string, Error>();
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -18,6 +19,7 @@ function subscribe(onChange: () => void) {
 export function resetRealtimeMock() {
   metadataByRun.clear();
   partsByRun.clear();
+  errorByRun.clear();
 }
 
 export function emitMetadata(runId: string, metadata: Record<string, unknown>) {
@@ -30,14 +32,21 @@ export function emitTextPart(runId: string, chunk: string) {
   notify();
 }
 
+export function emitError(runId: string, error: Error) {
+  errorByRun.set(runId, error);
+  notify();
+}
+
 export function useRealtimeRun(runId?: string, options?: { enabled?: boolean }) {
   const metadata = useSyncExternalStore(subscribe, () => (runId ? metadataByRun.get(runId) : undefined));
+  const error = useSyncExternalStore(subscribe, () => (runId ? errorByRun.get(runId) : undefined));
   if (!options?.enabled || !runId) return { run: undefined, error: undefined };
-  return { run: metadata ? { id: runId, metadata } : undefined, error: undefined };
+  return { run: metadata ? { id: runId, metadata } : undefined, error };
 }
 
 export function useRealtimeStream(runId?: string, _streamKey?: string, options?: { enabled?: boolean }) {
   const parts = useSyncExternalStore(subscribe, () => (runId ? (partsByRun.get(runId) ?? EMPTY_PARTS) : EMPTY_PARTS));
+  const error = useSyncExternalStore(subscribe, () => (runId ? errorByRun.get(runId) : undefined));
   if (!options?.enabled || !runId) return { parts: EMPTY_PARTS, error: undefined };
-  return { parts, error: undefined };
+  return { parts, error };
 }
