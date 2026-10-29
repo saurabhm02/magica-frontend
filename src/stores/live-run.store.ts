@@ -8,6 +8,10 @@ export type LiveRun = {
   status: RunMetadata["status"];
   text: string;
   thinkingStartedAt?: string;
+  tools?: RunMetadata["tools"];
+  assets?: RunMetadata["assets"];
+  waitpoint?: RunMetadata["waitpoint"];
+  currentStep?: string;
   error?: SafeError;
 };
 
@@ -26,7 +30,16 @@ export const useLiveRunStore = create<LiveRunState>((set) => ({
 
   start: (chatId) =>
     set((s) => ({
-      runs: { ...s.runs, [chatId]: { status: "queued", text: "", thinkingStartedAt: new Date().toISOString() } },
+      runs: {
+        ...s.runs,
+        [chatId]: {
+          status: "queued",
+          text: "",
+          thinkingStartedAt: new Date().toISOString(),
+          tools: [],
+          assets: [],
+        },
+      },
     })),
 
   connect: (chatId, ids) => update(set, chatId, ids),

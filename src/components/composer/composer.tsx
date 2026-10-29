@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, ListChecks, Paperclip } from "lucide-react";
+import { ArrowUp, ListChecks, Paperclip, Square } from "lucide-react";
 import { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { IconButton } from "@/components/ui/icon-button";
@@ -99,14 +99,24 @@ function ComposerActions() {
         </IconButton>
       </div>
 
-      <IconButton
-        aria-label="Send"
-        disabled={disabled || !value.trim()}
-        onClick={submit}
-        className="bg-surface-main-background text-text-primary hover:bg-surface-main-background"
-      >
-        <ArrowUp />
-      </IconButton>
+      {disabled ? (
+        <IconButton
+          aria-label="Stop"
+          type="button"
+          className="bg-[#dc2626] text-white hover:bg-red-700"
+        >
+          <Square className="h-3 w-3 fill-current" />
+        </IconButton>
+      ) : (
+        <IconButton
+          aria-label="Send"
+          disabled={!value.trim()}
+          onClick={submit}
+          className="bg-surface-main-background text-text-primary hover:bg-surface-main-background"
+        >
+          <ArrowUp />
+        </IconButton>
+      )}
     </div>
   );
 }
