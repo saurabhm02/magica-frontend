@@ -3,8 +3,8 @@ import type { SafeError } from "@/contracts/errors";
 import type { RunMetadata } from "@/contracts/run";
 
 export type LiveRun = {
-  runId: string;
-  accessToken: string;
+  triggerRunId?: string;
+  accessToken?: string;
   status: RunMetadata["status"];
   text: string;
   thinkingStartedAt?: string;
@@ -13,7 +13,9 @@ export type LiveRun = {
 
 type LiveRunState = {
   runs: Record<string, LiveRun>; // keyed by chatId
-  start: (chatId: string, run: { runId: string; accessToken: string }) => void;
+  start: (chatId: string) => void;
+  connect: (chatId: string, ids: { triggerRunId: string; accessToken: string }) => void;
+  fail: (chatId: string, message: string) => void;
   setMetadata: (chatId: string, metadata: RunMetadata) => void;
   setText: (chatId: string, text: string) => void;
   clear: (chatId: string) => void;
@@ -22,27 +24,25 @@ type LiveRunState = {
 export const useLiveRunStore = create<LiveRunState>((set) => ({
   runs: {},
 
-  start: (chatId, run) =>
+  start: (chatId) =>
     set((s) => ({
-      runs: {
-        ...s.runs,
-        [chatId]: { ...run, status: "thinking", text: "", thinkingStartedAt: new Date().toISOString() },
-      },
+      runs: { ...s.runs, [chatId]: { status: "queued", text: "", thinkingStartedAt: new Date().toISOString() } },
     })),
+
+  connect: (chatId, ids) => update(set, chatId, ids),
+
+  fail: (chatId, message) =>
+    update(set, chatId, { status: "failed", error: { code: "INTERNAL", message, retryable: true } }),
 
   setMetadata: (chatId, metadata) =>
     set((s) => {
       const run = s.runs[chatId];
       if (!run) return s;
-      return { runs: { ...s.runs, [chatId]: { ...run, ...metadata } } };
+      const patch = run.thinkingStartedAt ? { ...metadata, thinkingStartedAt: run.thinkingStartedAt } : metadata;
+      return { runs: { ...s.runs, [chatId]: { ...run, ...patch } } };
     }),
 
-  setText: (chatId, text) =>
-    set((s) => {
-      const run = s.runs[chatId];
-      if (!run) return s;
-      return { runs: { ...s.runs, [chatId]: { ...run, text } } };
-    }),
+  setText: (chatId, text) => update(set, chatId, { text }),
 
   clear: (chatId) =>
     set((s) => {
@@ -52,3 +52,10 @@ export const useLiveRunStore = create<LiveRunState>((set) => ({
       return { runs };
     }),
 }));
+
+function update(set: (fn: (s: LiveRunState) => Partial<LiveRunState>) => void, chatId: string, patch: Partial<LiveRun>) {
+  set((s) => {
+    const run = s.runs[chatId];
+    return run ? { runs: { ...s.runs, [chatId]: { ...run, ...patch } } } : s;
+  });
+}

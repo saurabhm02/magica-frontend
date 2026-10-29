@@ -23,11 +23,13 @@ function ComposerProvider({
 
   const submit = async () => {
     if (disabled || !value.trim() || !onSubmit) return;
+    const text = value;
     setError(null);
+    setValue("");
     try {
-      await onSubmit(value);
-      setValue("");
+      await onSubmit(text);
     } catch (err) {
+      setValue(text);
       setError(err instanceof Error ? err.message : "Something went wrong");
     }
   };

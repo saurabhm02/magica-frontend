@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AssistantText } from "./chat-messages";
 import { useLiveRunStore } from "@/stores/live-run.store";
 
 export function LiveBubble({ chatId }: { chatId: string }) {
@@ -10,15 +11,13 @@ export function LiveBubble({ chatId }: { chatId: string }) {
   const thinking = liveRun.status === "queued" || liveRun.status === "thinking";
 
   return (
-    <div className="flex flex-col gap-1 px-6 py-3" aria-live="polite">
-      <p className="text-xs text-text-tertiary">assistant</p>
+    <div className="px-6 py-3" aria-live="polite">
       {thinking ? (
         <ThinkingTimer startedAt={liveRun.thinkingStartedAt} />
+      ) : liveRun.status === "failed" ? (
+        <p className="text-sm text-error">{liveRun.error?.message}</p>
       ) : (
-        <p className="text-sm whitespace-pre-wrap text-text-primary">
-          {liveRun.text}
-          {liveRun.status === "working" && <span className="animate-pulse">▍</span>}
-        </p>
+        <AssistantText text={liveRun.text} cursor={liveRun.status === "working"} />
       )}
     </div>
   );

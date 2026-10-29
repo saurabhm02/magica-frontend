@@ -2,13 +2,19 @@
 
 import { useSyncExternalStore } from "react";
 
+let snapshot = Date.now();
+
 function subscribe(callback: () => void) {
-  const id = setInterval(callback, 30_000);
+  snapshot = Date.now();
+  const id = setInterval(() => {
+    snapshot = Date.now();
+    callback();
+  }, 30_000);
   return () => clearInterval(id);
 }
 
 function getSnapshot() {
-  return Date.now();
+  return snapshot;
 }
 
 function getServerSnapshot() {

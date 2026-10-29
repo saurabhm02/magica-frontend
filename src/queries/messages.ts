@@ -60,6 +60,7 @@ export function useSendMessage() {
     },
     onSuccess: () => {
       lastAttempt.current = null;
+      queryClient.invalidateQueries({ queryKey: queryKeys.chats });
     },
     onSettled: (_data, _error, vars) => queryClient.invalidateQueries({ queryKey: queryKeys.messages(vars.chatId) }),
   });

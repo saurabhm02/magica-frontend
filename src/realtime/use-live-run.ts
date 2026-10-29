@@ -5,7 +5,7 @@ import { useRealtimeRun, useRealtimeStream } from "@trigger.dev/react-hooks";
 import { useEffect, useRef } from "react";
 import { RunMetadata } from "@/contracts/run";
 import { queryKeys } from "@/queries/keys";
-import { FINAL_STATUSES } from "@/lib/constants";
+import { FINAL_STATUSES, TEXT_STREAM_ID } from "@/lib/constants";
 import { useLiveRunStore } from "@/stores/live-run.store";
 
 export function useLiveRun(chatId: string) {
@@ -15,15 +15,10 @@ export function useLiveRun(chatId: string) {
   const clear = useLiveRunStore((s) => s.clear);
   const queryClient = useQueryClient();
 
-  const active = !!liveRun;
-  const { run } = useRealtimeRun(liveRun?.runId ?? "", {
-    accessToken: liveRun?.accessToken ?? "",
-    enabled: active,
-  });
-  const { parts } = useRealtimeStream<string>(liveRun?.runId ?? "", "text", {
-    accessToken: liveRun?.accessToken ?? "",
-    enabled: active,
-  });
+  const runId = liveRun?.triggerRunId ?? "";
+  const options = { id: runId, accessToken: liveRun?.accessToken ?? "", enabled: !!runId };
+  const { run } = useRealtimeRun(runId, options);
+  const { parts } = useRealtimeStream<string>(runId, TEXT_STREAM_ID, options);
 
   useEffect(() => {
     if (!run?.metadata) return;
@@ -35,33 +30,16 @@ export function useLiveRun(chatId: string) {
     setMetadata(chatId, parsed.data);
   }, [run?.metadata, chatId, setMetadata]);
 
-
-
-
-  const latestParts = useRef<string[]>([]);
-  const frame = useRef<number | null>(null);
   useEffect(() => {
-    if (!parts) return;
-    latestParts.current = parts;
-    if (frame.current !== null) return;
-    frame.current = requestAnimationFrame(() => {
-      frame.current = null;
-      setText(chatId, latestParts.current.join(""));
-    });
+    if (parts.length) setText(chatId, parts.join(""));
   }, [parts, chatId, setText]);
-  useEffect(() => {
-    return () => {
-      if (frame.current !== null) cancelAnimationFrame(frame.current);
-    };
-  }, []);
-
 
   const finalizedRunId = useRef<string | null>(null);
   useEffect(() => {
-    if (!liveRun) return;
+    if (!liveRun?.triggerRunId) return;
     const terminal = FINAL_STATUSES.includes(liveRun.status) || !!run?.finishedAt;
-    if (!terminal || finalizedRunId.current === liveRun.runId) return;
-    finalizedRunId.current = liveRun.runId;
+    if (!terminal || finalizedRunId.current === liveRun.triggerRunId) return;
+    finalizedRunId.current = liveRun.triggerRunId;
     queryClient.invalidateQueries({ queryKey: queryKeys.messages(chatId) }).then(() => clear(chatId));
   }, [liveRun, run?.finishedAt, chatId, queryClient, clear]);
 }

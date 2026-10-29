@@ -8,7 +8,7 @@ import { useLiveRunStore } from "@/stores/live-run.store";
 
 export function ChatMessages({ chatId, onRetry }: { chatId: string; onRetry: (content: string) => void }) {
   const { data, isPending, isError, error } = useMessages(chatId);
-  const runActive = useLiveRunStore((s) => !!s.runs[chatId]);
+  const runActive = useLiveRunStore((s) => !!s.runs[chatId] && s.runs[chatId].status !== "failed");
 
   if (isPending) {
     return <p className="p-6 text-sm text-text-secondary">Loading…</p>;
@@ -28,7 +28,7 @@ export function ChatMessages({ chatId, onRetry }: { chatId: string; onRetry: (co
     return <p className="p-6 text-sm text-text-secondary">Couldn&apos;t load this chat.</p>;
   }
 
-  // While a run is live, its reply is shown by LiveBubble, not by the half-saved row.
+
   const messages = data.pages
     .flatMap((page) => page.items)
     .filter((message) => !(runActive && message.status === "streaming"))
@@ -60,6 +60,15 @@ function textOf(message: Message) {
     .join("\n");
 }
 
+export function AssistantText({ text, cursor }: { text: string; cursor?: boolean }) {
+  return (
+    <p className="text-sm whitespace-pre-wrap text-text-primary">
+      {text}
+      {cursor && <span className="animate-pulse">▍</span>}
+    </p>
+  );
+}
+
 function MessageRow({
   message,
   precedingUserText,
@@ -83,7 +92,7 @@ function MessageRow({
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <p className="text-sm whitespace-pre-wrap text-text-primary">{text}</p>
+      <AssistantText text={text} />
       {message.status === "failed" && (
         <div className="flex flex-col items-start gap-2">
           <p className="text-sm text-error">This reply failed.</p>

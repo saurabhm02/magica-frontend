@@ -10,7 +10,7 @@ import { LiveBubble } from "./live-bubble";
 
 export function ChatView({ chatId }: { chatId: string }) {
   useLiveRun(chatId);
-  const runActive = useLiveRunStore((s) => !!s.runs[chatId]);
+  const runActive = useLiveRunStore((s) => !!s.runs[chatId] && s.runs[chatId].status !== "failed");
   const submit = useSubmitMessage(chatId);
   const { containerRef, contentRef } = useAutoScroll();
 

@@ -6,22 +6,32 @@ import { useCreateChat } from "@/queries/chats";
 import { insertOptimisticUserMessage, useSendMessage } from "@/queries/messages";
 import { useLiveRunStore } from "@/stores/live-run.store";
 
-// On "/" (chatId undefined) this creates the chat first, then sends, then navigates —
-// the live run is started in the store before navigating, so it keeps going across it.
+
 export function useSubmitMessage(chatId?: string) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const createChat = useCreateChat();
   const sendMessage = useSendMessage();
-  const startLiveRun = useLiveRunStore((s) => s.start);
+  const { start, connect, fail, clear } = useLiveRunStore.getState();
 
   return async (content: string) => {
     const targetChatId = chatId ?? (await createChat.mutateAsync(undefined)).id;
 
     insertOptimisticUserMessage(queryClient, targetChatId, content);
-    const result = await sendMessage.mutateAsync({ chatId: targetChatId, content, planMode: false });
-    startLiveRun(targetChatId, { runId: result.runId, accessToken: result.realtime.accessToken });
+    start(targetChatId);
+    const send = sendMessage
+      .mutateAsync({ chatId: targetChatId, content, planMode: false })
+      .then(({ realtime }) => connect(targetChatId, { triggerRunId: realtime.runId, accessToken: realtime.accessToken }));
 
-    if (!chatId) router.push(`/chat/${targetChatId}`);
+    if (chatId) {
+      await send.catch((error) => {
+        clear(targetChatId);
+        throw error;
+      });
+      return;
+    }
+
+    router.push(`/chat/${targetChatId}`);
+    send.catch((error) => fail(targetChatId, error instanceof Error ? error.message : "Couldn't send the message."));
   };
 }
