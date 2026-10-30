@@ -10,7 +10,7 @@ export function SegmentedControl<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="flex gap-2">
+    <div className="inline-flex h-8 items-center gap-1 rounded-full bg-surface-secondary p-1">
       {options.map((option) => (
         <button
           key={option.value}
@@ -19,10 +19,10 @@ export function SegmentedControl<T extends string>({
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
           className={cn(
-            "h-9 rounded-full px-4 text-sm transition disabled:pointer-events-none disabled:opacity-40",
+            "h-7 rounded-full px-4 text-sm font-normal transition disabled:pointer-events-none disabled:opacity-40",
             value === option.value
-              ? "bg-surface-tertiary text-text-primary"
-              : "bg-surface-secondary text-text-secondary hover:bg-surface-hover",
+              ? "bg-surface-primary text-text-primary shadow-sm"
+              : "text-text-secondary hover:bg-surface-hover",
           )}
         >
           {option.label}

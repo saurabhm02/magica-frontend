@@ -75,7 +75,7 @@ beforeEach(() => {
 });
 
 describe("ToolDetail form", () => {
-  it("builds fields from the schema: enum becomes a select, a bounded number becomes a slider, and a required field without a default gets a red star", async () => {
+  it("builds fields from the schema: enum becomes a select, and a required field without a default gets a red star", async () => {
     server.use(http.get(`${base}/tools/${toolName}`, () => HttpResponse.json(toolDetail())));
     renderToolDetail();
 
@@ -84,8 +84,21 @@ describe("ToolDetail form", () => {
 
     expect(screen.getByRole("combobox")).toBeInTheDocument();
     expect(screen.getByText("Medium")).toBeInTheDocument();
+  });
 
+  it("hides an optional field with no default under Advanced Settings until opened", async () => {
+    server.use(http.get(`${base}/tools/${toolName}`, () => HttpResponse.json(toolDetail())));
+    renderToolDetail();
+    await screen.findByText("Prompt");
+
+    expect(screen.queryByRole("slider")).not.toBeInTheDocument();
+    const toggle = screen.getByRole("button", { name: "Advanced Settings (1)" });
+
+    fireEvent.click(toggle);
     expect(screen.getByRole("slider")).toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(screen.queryByRole("slider")).not.toBeInTheDocument();
   });
 });
 
@@ -116,7 +129,7 @@ describe("ToolDetail generate", () => {
     renderToolDetail();
     await screen.findByText("Prompt");
 
-    fireEvent.change(screen.getByPlaceholderText("Enter Prompt…"), { target: { value: "a red apple" } });
+    fireEvent.change(screen.getByPlaceholderText("Enter Prompt..."), { target: { value: "a red apple" } });
 
     const generateBtn = screen.getByRole("button", { name: /Generate/ });
     await act(async () => {
@@ -124,12 +137,49 @@ describe("ToolDetail generate", () => {
     });
 
     await waitFor(() => expect(posted).toEqual({ input: { prompt: "a red apple", quality: "Medium" } }));
-    expect(await screen.findByText("Running…")).toBeInTheDocument();
+    expect(await screen.findByText("This may take a moment")).toBeInTheDocument();
 
     await act(async () => emitFinished("trigger-1"));
 
     const img = await screen.findByRole("img");
     expect(img).toHaveAttribute("src", "https://example.com/out.png");
+  });
+
+  it("New Run clears the output and the selected run", async () => {
+    server.use(http.get(`${base}/tools/${toolName}`, () => HttpResponse.json(toolDetail())));
+    server.use(
+      http.post(`${base}/tools/${toolName}/runs`, () =>
+        HttpResponse.json({ runId: "run-db-1", realtime: { runId: "trigger-1", accessToken: "tok" } }),
+      ),
+      http.get(`${base}/tool-runs/run-db-1`, () => HttpResponse.json(runResponse({ status: "running" }))),
+    );
+
+    renderToolDetail();
+    await screen.findByText("Prompt");
+    fireEvent.change(screen.getByPlaceholderText("Enter Prompt..."), { target: { value: "a red apple" } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Generate/ }));
+    });
+    await screen.findByText("This may take a moment");
+
+    fireEvent.click(screen.getByRole("button", { name: "New Run" }));
+
+    expect(screen.getByText("No output yet")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "New Run" })).not.toBeInTheDocument();
+  });
+
+  it("Reset clears a typed field back to empty", async () => {
+    server.use(http.get(`${base}/tools/${toolName}`, () => HttpResponse.json(toolDetail())));
+    renderToolDetail();
+    await screen.findByText("Prompt");
+
+    const promptInput = screen.getByPlaceholderText("Enter Prompt...");
+    fireEvent.change(promptInput, { target: { value: "a red apple" } });
+    expect(promptInput).toHaveValue("a red apple");
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    expect(promptInput).toHaveValue("");
   });
 });
 
@@ -160,6 +210,26 @@ describe("ToolDetail run history", () => {
     expect(await screen.findByText("Completed")).toBeInTheDocument();
     expect(screen.getByText("0.005M")).toBeInTheDocument();
     expect(screen.getByText(/cmvsww1ws001rl208/)).toBeInTheDocument();
+  });
+
+  it("shows a pending or running run as 'Running' with no credits pill", async () => {
+    server.use(http.get(`${base}/tools/${toolName}`, () => HttpResponse.json(toolDetail())));
+    server.use(
+      http.get(`${base}/tools/${toolName}/runs`, () =>
+        HttpResponse.json({
+          items: [
+            { runId: "run-running-1", toolName, status: "running", credits: 0, output: null, assets: [], createdAt: now },
+          ],
+          nextCursor: null,
+        }),
+      ),
+    );
+
+    renderToolDetail();
+
+    expect(await screen.findByText("Running")).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.queryByText("Completed")).not.toBeInTheDocument();
   });
 });
 

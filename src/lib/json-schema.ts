@@ -24,7 +24,7 @@ export type ObjectJsonSchema = {
 };
 
 type FieldKind =
-  | { kind: "select"; options: string[] }
+  | { kind: "select"; options: string[]; numeric?: boolean }
   | { kind: "slider"; min: number; max: number; integer: boolean }
   | { kind: "textarea"; maxLength?: number }
   | { kind: "text" }
@@ -42,6 +42,8 @@ export type SchemaField = {
 const LONG_TEXT_THRESHOLD = 200;
 // z.toJSONSchema has no "unbounded" marker, so an int max this large just means "no real limit".
 const UNBOUNDED_INT_MAX = Number.MAX_SAFE_INTEGER;
+// A small enough integer range (e.g. 1-4) reads as a handful of discrete choices, not a slider.
+const SMALL_RANGE_MAX = 20;
 
 function humanize(name: string): string {
   return name
@@ -62,6 +64,11 @@ function fieldKind(prop: JsonSchemaProperty): FieldKind {
   if (prop.type === "number" || prop.type === "integer") {
     const hasRealMax = prop.maximum !== undefined && prop.maximum !== UNBOUNDED_INT_MAX;
     const min = prop.minimum ?? prop.exclusiveMinimum;
+    if (prop.type === "integer" && min !== undefined && hasRealMax && (prop.maximum as number) - min <= SMALL_RANGE_MAX) {
+      const max = prop.maximum as number;
+      const options = Array.from({ length: max - min + 1 }, (_, i) => String(min + i));
+      return { kind: "select", options, numeric: true };
+    }
     if (min !== undefined && hasRealMax) {
       return { kind: "slider", min, max: prop.maximum as number, integer: prop.type === "integer" };
     }

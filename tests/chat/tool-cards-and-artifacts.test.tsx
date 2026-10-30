@@ -508,4 +508,80 @@ describe("ChatMessages with saved tool content blocks", () => {
       "https://example.com/saved-apple.png",
     );
   });
+
+  it("renders text, citations, and usage in order", async () => {
+    const savedMessage: Message = {
+      id: "m-saved-2",
+      chatId,
+      role: "assistant",
+      status: "complete",
+      clientRequestId: null,
+      attachments: [],
+      createdAt: now,
+      updatedAt: now,
+      content: [
+        { type: "text", text: "The sky is blue because of Rayleigh scattering." },
+        {
+          type: "citations",
+          citations: [
+            { url: "https://en.wikipedia.org/wiki/Rayleigh_scattering", title: "Rayleigh scattering - Wikipedia" },
+            { url: "https://example.com/no-title-page" },
+          ],
+        },
+        { type: "usage", promptTokens: 1000, completionTokens: 234, totalTokens: 1234 },
+      ],
+    };
+
+    server.use(http.get(messagesUrl, () => HttpResponse.json({ items: [savedMessage], nextCursor: null })));
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChatMessages chatId={chatId} onRetry={vi.fn()} />
+      </QueryClientProvider>,
+    );
+
+    const text = await screen.findByText("The sky is blue because of Rayleigh scattering.");
+    const sourcesLink = screen.getByRole("link", { name: "Rayleigh scattering - Wikipedia" });
+    const hostnameLink = screen.getByRole("link", { name: "example.com" });
+    const usage = screen.getByTestId("message-usage");
+
+    expect(sourcesLink).toHaveAttribute("href", "https://en.wikipedia.org/wiki/Rayleigh_scattering");
+    expect(sourcesLink).toHaveAttribute("target", "_blank");
+    expect(sourcesLink).toHaveAttribute("rel", "noopener noreferrer");
+    expect(hostnameLink).toHaveAttribute("href", "https://example.com/no-title-page");
+    expect(usage).toHaveTextContent("Tokens: 1,234 (prompt 1,000 · reply 234)");
+
+    expect(text.compareDocumentPosition(sourcesLink)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(sourcesLink.compareDocumentPosition(usage)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it("renders no usage line when there are no tokens", async () => {
+    const savedMessage: Message = {
+      id: "m-saved-3",
+      chatId,
+      role: "assistant",
+      status: "complete",
+      clientRequestId: null,
+      attachments: [],
+      createdAt: now,
+      updatedAt: now,
+      content: [
+        { type: "text", text: "Hello there." },
+        { type: "usage", promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      ],
+    };
+
+    server.use(http.get(messagesUrl, () => HttpResponse.json({ items: [savedMessage], nextCursor: null })));
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChatMessages chatId={chatId} onRetry={vi.fn()} />
+      </QueryClientProvider>,
+    );
+
+    await screen.findByText("Hello there.");
+    expect(screen.queryByTestId("message-usage")).not.toBeInTheDocument();
+  });
 });

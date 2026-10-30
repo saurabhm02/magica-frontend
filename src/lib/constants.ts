@@ -22,6 +22,10 @@ export function formatCredits(microcredits?: number, options?: { precision?: num
   return `${options?.precision ? fixed.replace(/\.?0+$/, "") : fixed}M`;
 }
 
+export function formatUsage(usage: { promptTokens: number; completionTokens: number; totalTokens: number }): string {
+  return `Tokens: ${usage.totalTokens.toLocaleString()} (prompt ${usage.promptTokens.toLocaleString()} · reply ${usage.completionTokens.toLocaleString()})`;
+}
+
 export function formatSummaryLine(doneLabels: string[]): string {
   if (doneLabels.length === 0) return "";
   const joined = doneLabels.join(", ");

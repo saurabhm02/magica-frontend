@@ -12,6 +12,7 @@ const mockUser = {
     id: "user_test",
     fullName: "Test User",
     imageUrl: "https://example.com/avatar.png",
+      hasImage: true,
     primaryEmailAddress: { emailAddress: "test@example.com" },
   },
 };
@@ -36,6 +37,7 @@ describe("UserCard & Logout", () => {
       id: "user_test",
       fullName: "Test User",
       imageUrl: "https://example.com/avatar.png",
+      hasImage: true,
       primaryEmailAddress: { emailAddress: "test@example.com" },
     };
     queryClient = new QueryClient();
@@ -69,6 +71,7 @@ describe("UserCard & Logout", () => {
       id: "user_test",
       fullName: "",
       imageUrl: "https://example.com/avatar.png",
+      hasImage: true,
       primaryEmailAddress: { emailAddress: "akshat.anand@example.com" },
     };
     renderUserCard();
@@ -79,7 +82,8 @@ describe("UserCard & Logout", () => {
     mockUser.current = {
       id: "user_test",
       fullName: "",
-      imageUrl: "",
+      imageUrl: "https://img.clerk.com/default.png",
+      hasImage: false,
       primaryEmailAddress: { emailAddress: "akshat.anand@example.com" },
     };
     renderUserCard();

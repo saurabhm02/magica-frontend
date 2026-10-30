@@ -4,7 +4,11 @@ Frontend for the Agent Chat clone (Magica / Galaxy work trial). Backend lives in
 
 It's a close copy of Galaxy's live Agent Chat: you chat with an AI agent that can work for minutes, use tools (crop images, generate images, merge videos), ask you for approval, and stream its progress live. Close the tab or lose the connection, and the run is still there when you come back.
 
-> **Status:** work in progress. Done so far: project setup, Clerk sign-in with protected routes, app shell (sidebar, composer), the API layer (`services/`, `queries/`) wired to real chats and messages. Full checklist in [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md).
+- **Live app:** https://magica-frontend-six.vercel.app
+- **API docs:** https://xxx-bd8b9056.mintlify.site
+- **Backend repo:** https://github.com/saurabhm02/magica-backend
+
+**Test login:** a reviewer account (email + password) is shared with the submission, not stored in this public repo. You can also sign in with Google or GitHub.
 
 ---
 
@@ -97,8 +101,6 @@ tests/            Vitest tests
 docs/             architecture and design docs
 ```
 
-Folders like `realtime/`, `stores/live-run.store.ts` and `stores/composer.store.ts` are added when the feature that needs them is built — no empty placeholder files. The planned layout is in [`AGENTS.md`](AGENTS.md).
-
 ---
 
 ## Architecture overview
@@ -123,7 +125,7 @@ More detail:
 
 ## Design decisions and trade-offs
 
-Only decisions that are already in the code. This table grows as features are built — the full plan is in [`docs/DECISIONS.md`](docs/DECISIONS.md).
+The main decisions in the code, and what each one costs.
 
 | Decision | Why | Trade-off |
 |---|---|---|
@@ -134,3 +136,13 @@ Only decisions that are already in the code. This table grows as features are bu
 | All API calls go through `services/*`, via one `request()` in `api-client.ts` | No raw `fetch` in components; one place adds the Clerk token, parses the response with Zod, and maps errors to `ApiError` | Every new route needs a service function, even trivial ones |
 | TanStack Query for chats and messages, cursor-paginated with `useInfiniteQuery` | Matches the backend's cursor pagination; caching and refetch come for free | Optimistic chat-list updates (rename/pin/delete) need manual cache patching + rollback |
 | `clientRequestId` generated once per send and reused on retry (`useRef`, not component state) | A retried send must hit the backend with the same id so it can't create a duplicate turn | The id only resets after a successful send, so a failed send must be retried, not re-typed, to stay idempotent |
+
+---
+
+## What I'd improve with more time
+
+- **Favorites and folders:** the Favorites tab and "My folders" are in the UI but not wired up yet.
+- **MCP server:** expose the agent and the three Magica tools to tools like Claude Desktop or Cursor through the same API, credits and auth.
+- **SSH chat client:** chat with the agent from a terminal over SSH, streaming replies and tool progress live.
+- **More end-to-end coverage:** Playwright tests for plan mode, the question card, stop and reload recovery, beyond today's sign-in, chat and upload-and-crop tests.
+- **Mobile polish:** a full pass at phone width on every screen, beyond the sidebar and composer.

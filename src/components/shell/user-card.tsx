@@ -39,7 +39,7 @@ export function UserCard() {
         className="flex h-[34px] w-full items-center justify-between gap-2 rounded-16 border border-border-tertiary bg-surface-main-background px-2 transition-colors duration-75 hover:bg-surface-secondary"
       >
         <div className="flex min-w-0 items-center gap-2">
-          {user.imageUrl ? (
+          {user.hasImage ? (
             <Image
               src={user.imageUrl}
               alt=""

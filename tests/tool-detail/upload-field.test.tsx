@@ -25,7 +25,7 @@ function renderInputCard() {
   const onGenerate = vi.fn();
   render(
     <QueryClientProvider client={queryClient}>
-      <InputCard schema={cropImageSchema} estimatedCredits={5000} isGenerating={false} onGenerate={onGenerate} />
+      <InputCard schema={cropImageSchema} estimatedCredits={5000} isGenerating={false} onGenerate={onGenerate} onNewRun={vi.fn()} />
     </QueryClientProvider>,
   );
   return { onGenerate };
@@ -55,7 +55,7 @@ describe("UploadField in the tool playground", () => {
   it("goes from empty to uploading to ready, enabling Generate once the image lands", async () => {
     renderInputCard();
 
-    expect(screen.getByRole("button", { name: /Upload Image/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Upload image/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -70,7 +70,7 @@ describe("UploadField in the tool playground", () => {
     await act(async () => uppy.emit("transloadit:complete", { assembly_id: "asm-1" }));
 
     await waitFor(() => expect(screen.queryAllByText("Uploading...")).toHaveLength(0));
-    expect(screen.getByRole("button", { name: /Change Image/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Change image/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
   });
 });

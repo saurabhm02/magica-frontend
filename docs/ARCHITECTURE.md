@@ -55,7 +55,7 @@ Query keys in one file (`queries/keys.ts`) so invalidation is consistent.
 ## 5. Message rendering
 
 ```
-MessageList (virtualized, @tanstack/react-virtual)
+MessageList
   ├─ saved messages (from query)
   └─ LiveAssistantBubble (from live-run store, only while a run is active)
 

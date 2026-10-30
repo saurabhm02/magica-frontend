@@ -11,37 +11,25 @@ const CHIPS: { label: string; value: CategoryFilter }[] = [
   { label: "Utils", value: "util" },
 ];
 
-export function CategoryChips({
-  value,
-  onChange,
-  enabled,
-}: {
-  value: CategoryFilter;
-  onChange: (value: CategoryFilter) => void;
-  enabled: Set<CategoryFilter>;
-}) {
+export function CategoryChips({ value, onChange }: { value: CategoryFilter; onChange: (value: CategoryFilter) => void }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {CHIPS.map((chip) => {
-        const isEnabled = chip.value === "all" || enabled.has(chip.value);
-        return (
-          <button
-            key={chip.value}
-            type="button"
-            disabled={!isEnabled}
-            aria-pressed={value === chip.value}
-            onClick={() => onChange(chip.value)}
-            className={cn(
-              "h-9 rounded-full px-4 text-sm transition disabled:pointer-events-none disabled:opacity-40",
-              value === chip.value
-                ? "bg-surface-tertiary text-text-primary"
-                : "bg-surface-secondary text-text-secondary hover:bg-surface-hover",
-            )}
-          >
-            {chip.label}
-          </button>
-        );
-      })}
+      {CHIPS.map((chip) => (
+        <button
+          key={chip.value}
+          type="button"
+          aria-pressed={value === chip.value}
+          onClick={() => onChange(chip.value)}
+          className={cn(
+            "h-9 rounded-full px-4 text-sm transition",
+            value === chip.value
+              ? "bg-surface-tertiary text-text-primary"
+              : "bg-surface-secondary text-text-secondary hover:bg-surface-hover",
+          )}
+        >
+          {chip.label}
+        </button>
+      ))}
     </div>
   );
 }

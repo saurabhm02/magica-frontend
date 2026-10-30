@@ -4,13 +4,14 @@ import { useState } from "react";
 import { Check, Coins, Copy, GitFork, ThumbsDown, ThumbsUp } from "lucide-react";
 import type { ContentBlock } from "@/contracts/content-blocks";
 import type { Message } from "@/contracts/message";
-import { formatCredits, NOT_AVAILABLE_TOOLTIP } from "@/lib/constants";
+import { formatCredits, formatUsage, NOT_AVAILABLE_TOOLTIP } from "@/lib/constants";
 import { getMediaFromToolResult } from "@/lib/media";
 import { REASONING_RENDER_KEY } from "@/lib/reasoning";
 import type { ArtifactAsset, StepField, StepItem } from "@/lib/types";
 import { parseAnswers, parsePlanOutput, parseQuestions } from "@/lib/waitpoint";
 import { StepList } from "@/components/tools/step-list";
 import { AssistantText } from "./assistant-text";
+import { CitationsList } from "./citations-list";
 import { InterruptedCard } from "./interrupted-card";
 import { MediaAssetList } from "./media-asset-list";
 
@@ -128,12 +129,15 @@ export function AssistantMessage({
 
   const { steps, media } = toSteps(message);
   const textBlocks = message.content.filter((block) => block.type === "text").map((block) => block.text);
+  const citations = message.content.filter((block) => block.type === "citations").flatMap((block) => block.citations);
+  const usage = message.content.find((block) => block.type === "usage");
   const renderedUrls = new Set(media.map((asset) => asset.url));
 
   const fullText = textBlocks.join("\n\n");
   const timeStr = formatMessageTime(message.createdAt);
   const turnTotalCredits = steps.reduce((sum, s) => sum + (s.credits ?? 0), 0);
   const formattedTurnCredits = turnTotalCredits > 0 ? `${formatCredits(turnTotalCredits)} credits` : undefined;
+  const usageLine = usage && usage.totalTokens > 0 ? formatUsage(usage) : undefined;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(fullText);
@@ -149,6 +153,8 @@ export function AssistantMessage({
         <AssistantText key={idx} text={t} renderedUrls={renderedUrls} />
       ))}
 
+      <CitationsList citations={citations} />
+
       <MediaAssetList assets={media} />
 
       {message.status === "cancelled" && (
@@ -157,6 +163,7 @@ export function AssistantMessage({
 
       {(message.status === "complete" || message.status === "cancelled") && (
         <div className="flex flex-col gap-1.5 pt-1 text-xs text-text-tertiary">
+          {usageLine && <span data-testid="message-usage" className="text-[12px] leading-4">{usageLine}</span>}
           {formattedTurnCredits && (
             <span data-testid="message-credits" className="flex items-center gap-1 text-[10px] leading-3">
               <Coins className="size-3" />

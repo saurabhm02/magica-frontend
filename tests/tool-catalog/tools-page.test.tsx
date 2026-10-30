@@ -31,6 +31,19 @@ function renderToolsPage() {
 }
 
 describe("ToolsPage", () => {
+  it("shows the tool's tagline and price on its card", async () => {
+    server.use(
+      http.get(url, () =>
+        HttpResponse.json([tool({ description: "Crop an image to the dimensions you choose.", estimatedCredits: 5000 })]),
+      ),
+    );
+
+    renderToolsPage();
+
+    expect(await screen.findByText("Crop an image to the dimensions you choose.")).toBeInTheDocument();
+    expect(screen.getByText("~ 0.005M")).toBeInTheDocument();
+  });
+
   it("filters by category chip and by search text", async () => {
     server.use(
       http.get(url, () =>
@@ -56,14 +69,18 @@ describe("ToolsPage", () => {
     expect(screen.getByText("Gemini Omni Flash")).toBeInTheDocument();
   });
 
-  it("disables chips for categories with no tools", async () => {
+  it("keeps every category chip enabled, even ones with no tools", async () => {
     server.use(http.get(url, () => HttpResponse.json([tool({ category: "util" })])));
 
     renderToolsPage();
 
     expect(await screen.findByText("Crop Image")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Utils" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Audio" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "LLMs" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Audio" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "LLMs" })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Audio" }));
+    expect(screen.queryByText("Crop Image")).not.toBeInTheDocument();
+    expect(screen.getByText("No tools found.")).toBeInTheDocument();
   });
 });

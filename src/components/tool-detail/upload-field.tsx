@@ -54,20 +54,22 @@ export function UploadField({
 
   return (
     <div>
-      <UploadPopover
-        accept={accept}
-        onSelectAsset={() => setModalOpen(true)}
-        onUpload={addFiles}
-        trigger={
-          <button
-            type="button"
-            className="flex w-full items-center justify-center gap-2 rounded-10 border border-border-secondary px-3 py-2.5 text-sm text-text-secondary hover:bg-surface-hover"
-          >
-            <UploadCloud className="size-4" />
-            {hasReady ? `Change ${label}` : `Upload ${label}`}
-          </button>
-        }
-      />
+      <div className="rounded-12 bg-surface-secondary/30 p-4">
+        <UploadPopover
+          accept={accept}
+          onSelectAsset={() => setModalOpen(true)}
+          onUpload={addFiles}
+          trigger={
+            <button
+              type="button"
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-10 border border-dashed border-border-secondary text-sm text-text-secondary hover:bg-surface-hover"
+            >
+              <UploadCloud className="size-4" />
+              {hasReady ? `Change ${label.toLowerCase()}` : `Upload ${label.toLowerCase()}`}
+            </button>
+          }
+        />
+      </div>
 
       {items.some((item) => item.status === "uploading") && <p className="mt-1.5 text-xs text-text-tertiary">Uploading...</p>}
 
@@ -91,7 +93,10 @@ export function UploadField({
                   Retry
                 </button>
               )}
-              {item.status === "ready" && item.previewUrl && (
+              {item.status === "ready" && item.previewUrl && item.kind === "video" && (
+                <video src={item.previewUrl} className="h-full w-full object-cover" muted />
+              )}
+              {item.status === "ready" && item.previewUrl && item.kind !== "video" && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.previewUrl} alt={item.name} className="h-full w-full object-cover" />
               )}

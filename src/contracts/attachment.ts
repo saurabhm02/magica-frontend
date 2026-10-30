@@ -2,7 +2,7 @@
 import { z } from "zod";
 
 export const MAX_ATTACHMENTS_PER_MESSAGE = 10;
-export const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; // 500 MB
+export const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; 
 
 export const ALLOWED_ATTACHMENT_MIME_TYPES = [
   // Images
@@ -20,7 +20,6 @@ export const ALLOWED_ATTACHMENT_MIME_TYPES = [
   "video/webm",
   "video/x-msvideo",
   "video/mpeg",
-  // Audio
   "audio/mpeg",
   "audio/mp3",
   "audio/wav",

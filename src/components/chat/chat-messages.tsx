@@ -43,14 +43,16 @@ export const ChatMessages = memo(function ChatMessages({
     .reverse();
 
   return (
-    <div className="flex flex-col gap-4 p-6">
+    // Same centered 900px column as Magica, with its padding and 24px between messages.
+    <div className="mx-auto w-full max-w-[900px] pt-6">
       {messages.map((message, i) => (
-        <MessageRow
-          key={message.id}
-          message={message}
-          precedingUserText={precedingUserText(messages, i)}
-          onRetry={runActive ? undefined : onRetry}
-        />
+        <div key={message.id} className="px-2 pb-6 sm:px-4">
+          <MessageRow
+            message={message}
+            precedingUserText={precedingUserText(messages, i)}
+            onRetry={runActive ? undefined : onRetry}
+          />
+        </div>
       ))}
     </div>
   );
@@ -81,7 +83,7 @@ function MessageRow({
     return (
       <div className="flex flex-col items-end gap-1.5">
         <SentAttachments attachments={message.attachments} />
-        <p className="max-w-[70%] rounded-16 bg-surface-tertiary px-4 py-2 text-sm whitespace-pre-wrap text-text-primary">
+        <p className="max-w-[min(100%,28rem)] rounded-16 bg-surface-tertiary px-4 py-1.5 text-sm leading-5 break-words whitespace-pre-wrap text-text-primary">
           {textOf(message)}
         </p>
       </div>

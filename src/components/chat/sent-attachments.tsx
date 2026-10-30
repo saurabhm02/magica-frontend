@@ -21,7 +21,7 @@ export function SentAttachments({ attachments }: { attachments: Attachment[] }) 
   if (attachments.length === 0) return null;
 
   return (
-    <div className="flex justify-end gap-2">
+    <div className="flex max-w-[352px] flex-wrap justify-end gap-1">
       {attachments.map((attachment, i) => (
         <Thumbnail key={attachment.id} attachment={attachment} onClick={() => setPreviewIndex(i)} />
       ))}
@@ -43,7 +43,7 @@ function Thumbnail({ attachment, onClick }: { attachment: Attachment; onClick: (
   const [loaded, setLoaded] = useState(false);
 
   return (
-    <button type="button" aria-label={`Open ${attachment.name}`} onClick={onClick} className="relative size-[110px] shrink-0 overflow-hidden rounded-16">
+    <button type="button" aria-label={`Open ${attachment.name}`} onClick={onClick} className="relative size-28 shrink-0 overflow-hidden rounded-12 bg-surface-secondary">
       {!loaded && <div className="absolute inset-0 animate-pulse bg-surface-tertiary" />}
       {attachment.kind === "video" ? (
         <video src={attachment.url} className="h-full w-full object-cover" muted onLoadedData={() => setLoaded(true)} />

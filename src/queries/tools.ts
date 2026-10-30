@@ -10,6 +10,13 @@ import {
   listToolRuns,
 } from "@/services/tools.service";
 import { queryKeys } from "./keys";
+
+const RUN_RECHECK_MS = 5000;
+const FINISHED_STATUSES = ["succeeded", "failed", "cancelled"];
+
+export function isFinished(status: string) {
+  return FINISHED_STATUSES.includes(status);
+}
 import { useAuthedApi } from "./use-authed-api";
 
 export function useTools() {
@@ -58,5 +65,8 @@ export function useToolRun(runId: string | null) {
     queryKey: queryKeys.toolRun(runId ?? ""),
     queryFn: () => withAuth((token) => getToolRun(token, runId as string)),
     enabled: !!runId,
+    // Realtime is the main path. While a run is still going, re-check the saved state every
+    // few seconds too, so a dropped realtime connection can't leave the page stuck on "Running".
+    refetchInterval: (query) => (query.state.data && !isFinished(query.state.data.status) ? RUN_RECHECK_MS : false),
   });
 }

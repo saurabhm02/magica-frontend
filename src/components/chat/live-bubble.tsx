@@ -17,7 +17,7 @@ export function LiveBubble({ chatId }: { chatId: string }) {
 
   if (liveRun.status === "failed") {
     return (
-      <div className="px-6 py-3">
+      <div className="mx-auto w-full max-w-[900px] px-2 pb-6 sm:px-4">
         <p aria-live="polite" className="text-sm text-error">
           {liveRun.error?.message || "Failed"}
         </p>
@@ -26,7 +26,7 @@ export function LiveBubble({ chatId }: { chatId: string }) {
   }
 
   return (
-    <div className="px-6 py-3">
+    <div className="mx-auto w-full max-w-[900px] px-2 pb-6 sm:px-4">
       <div className="flex flex-col items-start gap-3">
         {liveRun.isReconnecting && (
           <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
