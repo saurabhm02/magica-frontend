@@ -1,7 +1,7 @@
 "use client";
 
-import { UploadCloud, X } from "lucide-react";
 import type { SchemaField as SchemaFieldType } from "@/lib/json-schema";
+import { UploadField } from "./upload-field";
 
 export type FieldValue = string | number | boolean | string[] | undefined;
 
@@ -24,10 +24,12 @@ export function SchemaField({
   field,
   value,
   onChange,
+  onUploadingChange,
 }: {
   field: SchemaFieldType;
   value: FieldValue;
   onChange: (value: FieldValue) => void;
+  onUploadingChange?: (uploading: boolean) => void;
 }) {
   if (field.kind === "select") {
     return (
@@ -114,65 +116,19 @@ export function SchemaField({
   }
 
   if (field.kind === "url") {
-    const urls = (value as string[] | undefined) ?? (field.multiple ? [] : [""]);
     const isVideo = field.name.toLowerCase().includes("video");
-    const atMax = field.multiple && field.maxItems !== undefined && urls.length >= field.maxItems;
 
     return (
       <div>
         <FieldLabel field={field} />
-        <button
-          type="button"
-          disabled
-          title="Paste a URL for now"
-          className="flex w-full items-center justify-center gap-2 rounded-10 border border-dashed border-border-secondary px-3 py-2.5 text-sm text-text-tertiary disabled:opacity-60"
-        >
-          <UploadCloud className="size-4" />
-          Upload {isVideo ? "Video" : "Image"}
-        </button>
-
-        <div className="mt-2 flex flex-col gap-2">
-          {urls.map((url, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <input
-                value={url}
-                onChange={(e) => {
-                  const next = [...urls];
-                  next[i] = e.target.value;
-                  onChange(next);
-                }}
-                placeholder="Paste a URL for now"
-                className={inputClassName}
-              />
-              {field.multiple && (
-                <button
-                  type="button"
-                  aria-label="Remove URL"
-                  onClick={() => onChange(urls.filter((_, idx) => idx !== i))}
-                  className="shrink-0 text-text-tertiary hover:text-text-primary"
-                >
-                  <X className="size-4" />
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {field.multiple && (
-          <div className="mt-2 flex items-center justify-between">
-            <button
-              type="button"
-              disabled={atMax}
-              onClick={() => onChange([...urls, ""])}
-              className="text-xs text-text-secondary hover:text-text-primary disabled:opacity-40"
-            >
-              + Add URL
-            </button>
-            <p className="text-xs text-text-tertiary">
-              {urls.filter(Boolean).length}/{field.maxItems ?? "∞"} uploaded
-            </p>
-          </div>
-        )}
+        <UploadField
+          scopeId={`tool-input-${field.name}`}
+          accept={isVideo ? "video" : "image"}
+          multiple={field.multiple}
+          maxFiles={field.maxItems}
+          onChange={(urls) => onChange(field.multiple ? urls : urls[0])}
+          onUploadingChange={onUploadingChange ?? (() => {})}
+        />
       </div>
     );
   }

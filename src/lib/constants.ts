@@ -8,6 +8,11 @@ export const REST_POLL_INTERVAL_MS = 2500;
 
 export const NOT_AVAILABLE_TOOLTIP = "Not available in this demo";
 
+// Mirror the server's SAFE_ERROR_MESSAGES so the client rejects the same way before uploading.
+export const UPLOAD_TOO_LARGE_MESSAGE = "File upload too large.";
+export const UPLOAD_TYPE_NOT_ALLOWED_MESSAGE = "File type not allowed.";
+export const UPLOAD_FAILED_MESSAGE = "Upload failed. Try again.";
+
 export function formatCredits(microcredits?: number, options?: { precision?: number }): string {
   if (microcredits === undefined || microcredits === null) return "";
   const m = microcredits / 1_000_000;

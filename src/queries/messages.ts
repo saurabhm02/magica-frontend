@@ -2,8 +2,9 @@
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData, type QueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
-import type { ListMessagesResponse, RespondWaitpointInput, SendMessageRequest } from "@/contracts/api";
+import type { Attachment, ListMessagesResponse, RespondWaitpointInput, SendMessageRequest } from "@/contracts/api";
 import type { Message } from "@/contracts/message";
+import type { AttachmentItem } from "@/lib/types";
 import { cancelRun, getActiveRun, listMessages, respondWaitpoint, sendMessage } from "@/services/messages.service";
 import { queryKeys } from "./keys";
 import { useAuthedApi } from "./use-authed-api";
@@ -33,7 +34,30 @@ export function useMessages(chatId: string) {
   });
 }
 
-function insertOptimisticUserMessage(queryClient: QueryClient, chatId: string, content: string, clientRequestId: string) {
+// The optimistic message shows the attachments as they were when the user hit send (local
+// blob previews, not yet the saved CDN URLs), so pending items need an Attachment shape too.
+function toOptimisticAttachment(item: AttachmentItem, position: number): Attachment {
+  return {
+    id: item.attachmentId ?? item.id,
+    source: "upload",
+    kind: item.kind,
+    mimeType: "",
+    sizeBytes: 0,
+    name: item.name,
+    url: item.url ?? item.previewUrl ?? "",
+    status: "ready",
+    position,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function insertOptimisticUserMessage(
+  queryClient: QueryClient,
+  chatId: string,
+  content: string,
+  clientRequestId: string,
+  attachments: AttachmentItem[],
+) {
   const optimisticMessage: Message = {
     id: `temp-${clientRequestId}`,
     chatId,
@@ -41,6 +65,7 @@ function insertOptimisticUserMessage(queryClient: QueryClient, chatId: string, c
     status: "complete",
     content: [{ type: "text", text: content }],
     clientRequestId,
+    attachments: attachments.map(toOptimisticAttachment),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -54,7 +79,7 @@ function insertOptimisticUserMessage(queryClient: QueryClient, chatId: string, c
   });
 }
 
-type SendMessageVars = Omit<SendMessageRequest, "clientRequestId"> & { chatId: string };
+type SendMessageVars = Omit<SendMessageRequest, "clientRequestId"> & { chatId: string; attachments?: AttachmentItem[] };
 
 export function useSendMessage() {
   const withAuth = useAuthedApi();
@@ -67,10 +92,19 @@ export function useSendMessage() {
     onMutate: (vars: SendMessageVars) => {
       const reuse = lastAttempt.current?.chatId === vars.chatId && lastAttempt.current?.content === vars.content;
       if (!reuse) lastAttempt.current = { chatId: vars.chatId, content: vars.content, clientRequestId: crypto.randomUUID() };
-      insertOptimisticUserMessage(queryClient, vars.chatId, vars.content, lastAttempt.current!.clientRequestId);
+      insertOptimisticUserMessage(queryClient, vars.chatId, vars.content, lastAttempt.current!.clientRequestId, vars.attachments ?? []);
     },
     mutationFn: (vars: SendMessageVars) =>
-      withAuth((token) => sendMessage(token, vars.chatId, { ...vars, clientRequestId: lastAttempt.current!.clientRequestId })),
+      withAuth((token) =>
+        sendMessage(token, vars.chatId, {
+          content: vars.content,
+          attachmentIds: vars.attachmentIds,
+          planMode: vars.planMode,
+          model: vars.model,
+          webhook: vars.webhook,
+          clientRequestId: lastAttempt.current!.clientRequestId,
+        }),
+      ),
     onSuccess: () => {
       lastAttempt.current = null;
       queryClient.invalidateQueries({ queryKey: queryKeys.chats });

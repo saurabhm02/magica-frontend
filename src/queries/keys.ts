@@ -10,5 +10,5 @@ export const queryKeys = {
   toolDetail: (name: string) => ["tools", name] as const,
   toolRuns: (name: string) => ["tools", name, "runs"] as const,
   toolRun: (runId: string) => ["toolRuns", runId] as const,
-  assets: ["assets"] as const,
+  assets: (params?: { type?: string; source?: string }) => ["assets", params?.type ?? null, params?.source ?? null] as const,
 };

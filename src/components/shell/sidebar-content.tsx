@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronRight, ChevronUp, Search } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LayoutSidebar } from "@/components/icons/layout-sidebar";
@@ -23,9 +24,9 @@ export function SidebarContent({ onCollapse }: { onCollapse?: () => void }) {
           type="button"
           aria-label="Start a new task"
           onClick={() => router.push("/")}
-          className="flex h-8 items-center rounded-10 px-1 text-base font-semibold text-text-primary"
+          className="flex h-8 items-center rounded-10 px-1"
         >
-          Magica
+          <Image src="/magica.png" alt="Magica" width={80} height={18} className="h-[18px] w-auto object-contain dark:invert" priority />
         </button>
         <div className="flex items-center gap-0.5">
           <IconButton

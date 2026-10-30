@@ -464,6 +464,7 @@ describe("ChatMessages with saved tool content blocks", () => {
       role: "assistant",
       status: "complete",
       clientRequestId: null,
+      attachments: [],
       createdAt: now,
       updatedAt: now,
       content: [

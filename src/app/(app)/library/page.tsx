@@ -1,34 +1,43 @@
 "use client";
 
 import { useState } from "react";
-import { cn } from "@/lib/utils";
 import { useInfiniteScroll } from "@/lib/use-infinite-scroll";
 import { useAssets } from "@/queries/assets";
-import { SearchInput } from "@/components/ui/search-input";
-import { fileNameFromUrl } from "@/components/library/file-name";
+import { ImagePreviewModal } from "@/components/attachments/image-preview-modal";
+import { DayGroupHeader } from "@/components/library/day-group-header";
 import { groupByDay } from "@/components/library/group-by-day";
-import { MediaCard } from "@/components/library/media-card";
+import { MediaTabs, type MediaTab } from "@/components/library/media-tabs";
+import { MediaTile } from "@/components/library/media-tile";
+import { SearchInput } from "@/components/ui/search-input";
 
-type Tab = "all" | "generated" | "uploads";
-const TABS: { label: string; value: Tab }[] = [
-  { label: "All", value: "all" },
-  { label: "Generated", value: "generated" },
-  { label: "My Uploads", value: "uploads" },
-];
+function sourceForTab(tab: MediaTab) {
+  return tab === "favorites" ? undefined : tab;
+}
 
 export default function LibraryPage() {
-  const { data, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useAssets();
-  const [tab, setTab] = useState<Tab>("all");
+  const [tab, setTab] = useState<MediaTab>("all");
   const [query, setQuery] = useState("");
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const { data, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useAssets(
+    { source: sourceForTab(tab) },
+    tab !== "favorites",
+  );
   const sentinelRef = useInfiniteScroll(hasNextPage, fetchNextPage);
 
+  const total = data?.pages[0]?.total ?? 0;
   const allItems = data?.pages.flatMap((page) => page.items) ?? [];
-  // "My Uploads" isn't tracked separately yet; every asset currently comes from a tool run.
-  const tabItems = tab === "uploads" ? [] : allItems;
-  const items = tabItems.filter((asset) =>
-    fileNameFromUrl(asset.url).name.toLowerCase().includes(query.trim().toLowerCase()),
-  );
+  const q = query.trim().toLowerCase();
+  const items = allItems.filter((asset) => asset.name.toLowerCase().includes(q) || asset.prompt?.toLowerCase().includes(q));
   const groups = groupByDay(items);
+  const previewItems = items.map((asset) => ({
+    url: asset.url,
+    kind: asset.type,
+    name: asset.name,
+    source: asset.source,
+    createdAt: asset.createdAt,
+    sizeBytes: asset.sizeBytes ?? undefined,
+    prompt: asset.prompt ?? undefined,
+  }));
 
   return (
     <div className="mx-auto max-w-[1200px] p-6">
@@ -38,48 +47,47 @@ export default function LibraryPage() {
         <SearchInput value={query} onChange={setQuery} placeholder="Search media..." />
       </div>
 
-      {data && <p className="mt-4 text-sm text-text-secondary">{allItems.length} files</p>}
+      <p className="mt-4 text-sm text-text-secondary">{total} files</p>
 
-      <div className="mt-4 flex gap-2">
-        {TABS.map((t) => (
-          <button
-            key={t.value}
-            type="button"
-            aria-pressed={tab === t.value}
-            onClick={() => setTab(t.value)}
-            className={cn(
-              "h-9 rounded-full px-4 text-sm transition",
-              tab === t.value
-                ? "bg-surface-tertiary text-text-primary"
-                : "bg-surface-secondary text-text-secondary hover:bg-surface-hover",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="mt-4">
+        <MediaTabs value={tab} onChange={setTab} />
       </div>
 
-      {isPending && <p className="mt-6 text-sm text-text-secondary">Loading…</p>}
-      {isError && <p className="mt-6 text-sm text-text-secondary">Couldn&apos;t load media.</p>}
-      {data && items.length === 0 && <p className="mt-6 text-sm text-text-secondary">No media yet.</p>}
+      {tab === "favorites" ? (
+        <p className="mt-6 text-sm text-text-secondary">No favorites yet</p>
+      ) : (
+        <>
+          {isPending && <p className="mt-6 text-sm text-text-secondary">Loading…</p>}
+          {isError && <p className="mt-6 text-sm text-text-secondary">Couldn&apos;t load media.</p>}
+          {data && items.length === 0 && <p className="mt-6 text-sm text-text-secondary">No media yet.</p>}
 
-      <div className="mt-6 flex flex-col gap-6">
-        {groups.map((group) => (
-          <div key={group.label}>
-            <p className="mb-3 text-sm font-semibold text-text-primary">
-              {group.label} <span className="font-normal text-text-tertiary">· {group.items.length} Items</span>
-            </p>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {group.items.map((asset) => (
-                <MediaCard key={asset.url} asset={asset} />
-              ))}
-            </div>
+          <div className="mt-6 flex flex-col gap-6">
+            {groups.map((group) => (
+              <div key={group.label}>
+                <DayGroupHeader label={group.label} count={group.items.length} />
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {group.items.map((asset) => (
+                    <MediaTile key={asset.url} asset={asset} onClick={() => setPreviewIndex(items.indexOf(asset))} />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      <div ref={sentinelRef} />
-      {isFetchingNextPage && <p className="mt-4 text-center text-xs text-text-tertiary">Loading more…</p>}
+          <div ref={sentinelRef} />
+          {isFetchingNextPage && <p className="mt-4 text-center text-xs text-text-tertiary">Loading more…</p>}
+        </>
+      )}
+
+      {previewIndex !== null && (
+        <ImagePreviewModal
+          items={previewItems}
+          index={previewIndex}
+          onIndexChange={setPreviewIndex}
+          open
+          onOpenChange={(open) => !open && setPreviewIndex(null)}
+        />
+      )}
     </div>
   );
 }

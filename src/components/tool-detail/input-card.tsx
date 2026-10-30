@@ -1,6 +1,6 @@
 "use client";
 
-import { RotateCcw, Sparkles } from "lucide-react";
+import { ArrowUp, RotateCcw, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { getSchemaFields, type SchemaField as SchemaFieldType } from "@/lib/json-schema";
@@ -34,12 +34,19 @@ export function InputCard({
 }) {
   const fields = getSchemaFields(schema);
   const [values, setValues] = useState<FormValues>(() => initialValues(fields));
+  const [uploadingFields, setUploadingFields] = useState<Set<string>>(new Set());
+
+  const isUploading = uploadingFields.size > 0;
 
   const handleReset = () => setValues(initialValues(fields));
   const handleGenerate = () => {
     const input = Object.fromEntries(Object.entries(values).filter(([, v]) => v !== undefined));
     onGenerate(input);
   };
+
+  const disabled = !isValid(fields, values) || isGenerating || isUploading;
+  const buttonLabel = isUploading ? "Uploading..." : isGenerating ? "Generating…" : "Generate";
+  const ButtonIcon = isUploading ? ArrowUp : Sparkles;
 
   return (
     <div className="flex flex-1 flex-col rounded-16 border border-border-secondary bg-surface-primary">
@@ -58,6 +65,14 @@ export function InputCard({
             field={field}
             value={values[field.name]}
             onChange={(v) => setValues((prev) => ({ ...prev, [field.name]: v }))}
+            onUploadingChange={(uploading) =>
+              setUploadingFields((prev) => {
+                const next = new Set(prev);
+                if (uploading) next.add(field.name);
+                else next.delete(field.name);
+                return next;
+              })
+            }
           />
         ))}
       </div>
@@ -67,9 +82,9 @@ export function InputCard({
           <RotateCcw />
           Reset
         </Button>
-        <Button type="button" disabled={!isValid(fields, values) || isGenerating} onClick={handleGenerate}>
-          <Sparkles />
-          {isGenerating ? "Generating…" : "Generate"}
+        <Button type="button" disabled={disabled} onClick={handleGenerate}>
+          <ButtonIcon />
+          {buttonLabel}
         </Button>
       </div>
     </div>

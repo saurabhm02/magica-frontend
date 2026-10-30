@@ -7,6 +7,7 @@ import { useMessages } from "@/queries/messages";
 import { ApiError } from "@/services/api-client";
 import { useLiveRunStore } from "@/stores/live-run.store";
 import { AssistantMessage } from "./assistant-message";
+import { SentAttachments } from "./sent-attachments";
 
 export const ChatMessages = memo(function ChatMessages({
   chatId,
@@ -78,7 +79,8 @@ function MessageRow({
 }) {
   if (message.role === "user") {
     return (
-      <div className="flex justify-end">
+      <div className="flex flex-col items-end gap-1.5">
+        <SentAttachments attachments={message.attachments} />
         <p className="max-w-[70%] rounded-16 bg-surface-tertiary px-4 py-2 text-sm whitespace-pre-wrap text-text-primary">
           {textOf(message)}
         </p>

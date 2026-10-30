@@ -2,9 +2,14 @@
 
 import { ArrowUp, AudioLines, Folder, ListChecks, Mic, Paperclip, Plug, Puzzle, Square } from "lucide-react";
 import { useRef, useState } from "react";
+import { useAttachments } from "@/components/attachments/use-attachments";
+import { SelectAssetModal } from "@/components/attachments/select-asset-modal";
+import { UploadPopover } from "@/components/attachments/upload-popover";
 import { NOT_AVAILABLE_TOOLTIP } from "@/lib/constants";
+import type { AttachmentItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { IconButton } from "@/components/ui/icon-button";
+import { ComposerChips } from "./composer-chips";
 import { ComposerContext, useComposer } from "./composer-context";
 
 const MAX_TEXTAREA_HEIGHT = 384;
@@ -13,27 +18,33 @@ const MAX_TEXTAREA_HEIGHT = 384;
 const actionClassName = "hover:bg-surface-main-background-2 hover:text-text-primary";
 
 function ComposerProvider({
+  chatId = "__draft__",
   children,
   onSubmit,
   onStop,
   disabled = false,
 }: {
+  chatId?: string;
   children: React.ReactNode;
-  onSubmit?: (value: string, planMode: boolean) => void | Promise<void>;
+  onSubmit?: (value: string, planMode: boolean, attachments: AttachmentItem[]) => void | Promise<void>;
   onStop?: () => void | Promise<void>;
   disabled?: boolean;
 }) {
   const [value, setValue] = useState("");
   const [planMode, setPlanMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { items, addFiles, addFromLibrary, removeAttachment, retryAttachment, clear } = useAttachments(chatId);
+
+  const isUploading = items.some((item) => item.status === "uploading");
 
   const submit = async () => {
-    if (disabled || !value.trim() || !onSubmit) return;
+    if (disabled || !value.trim() || !onSubmit || isUploading) return;
     const text = value;
     setError(null);
     setValue("");
     try {
-      await onSubmit(text, planMode);
+      await onSubmit(text, planMode, items);
+      clear();
     } catch (err) {
       setValue(text);
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -52,7 +63,21 @@ function ComposerProvider({
 
   return (
     <ComposerContext.Provider
-      value={{ value, setValue, planMode, togglePlanMode: () => setPlanMode((p) => !p), disabled, error, submit, stop }}
+      value={{
+        value,
+        setValue,
+        planMode,
+        togglePlanMode: () => setPlanMode((p) => !p),
+        disabled,
+        error,
+        submit,
+        stop,
+        attachments: items,
+        addFiles,
+        addFromLibrary,
+        removeAttachment,
+        retryAttachment,
+      }}
     >
       {children}
     </ComposerContext.Provider>
@@ -60,26 +85,47 @@ function ComposerProvider({
 }
 
 function ComposerRoot({ className, children, ...props }: React.ComponentProps<"div">) {
+  const { addFiles } = useComposer();
+  const [dragOver, setDragOver] = useState(false);
+
   return (
     <div
       className={cn(
         "group/composer relative mx-auto flex max-h-[70vh] min-h-[132px] w-[900px] max-w-full flex-col gap-3 overflow-clip rounded-24 bg-surface-main-background-3 px-4 pt-4 pb-3",
         className,
       )}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragOver(true);
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragOver(false);
+        if (e.dataTransfer.files.length) addFiles(Array.from(e.dataTransfer.files));
+      }}
+      onPaste={(e) => {
+        const files = Array.from(e.clipboardData.files);
+        if (files.length) addFiles(files);
+      }}
       {...props}
     >
       {/* Magica draws the composer border as a separate layer so it can brighten on hover. */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 rounded-24 shadow-[inset_0_0_0_0.3px_var(--color-border-tertiary)] transition-shadow group-hover/composer:shadow-[inset_0_0_0_1px_rgb(169_169_169/0.55)]"
+        className={cn(
+          "pointer-events-none absolute inset-0 rounded-24 shadow-[inset_0_0_0_0.3px_var(--color-border-tertiary)] transition-shadow group-hover/composer:shadow-[inset_0_0_0_1px_rgb(169_169_169/0.55)]",
+          dragOver && "shadow-[inset_0_0_0_1px_var(--color-brand-primary)]",
+        )}
       />
+      <ComposerChips />
       {children}
     </div>
   );
 }
 
 function ComposerTextarea({ placeholder = "Assign a task or ask anything..." }: { placeholder?: string }) {
-  const { value, setValue, submit } = useComposer();
+  const { value, setValue, submit, addFiles } = useComposer();
   const ref = useRef<HTMLTextAreaElement>(null);
 
   const resize = (el: HTMLTextAreaElement) => {
@@ -99,6 +145,15 @@ function ComposerTextarea({ placeholder = "Assign a task or ask anything..." }: 
         if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault();
           submit();
+          return;
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "u") {
+          e.preventDefault();
+          const input = document.createElement("input");
+          input.type = "file";
+          input.multiple = true;
+          input.onchange = () => input.files?.length && addFiles(Array.from(input.files));
+          input.click();
         }
       }}
       placeholder={placeholder}
@@ -109,15 +164,24 @@ function ComposerTextarea({ placeholder = "Assign a task or ask anything..." }: 
 }
 
 function ComposerActions() {
-  const { planMode, togglePlanMode, submit, stop, value, disabled } = useComposer();
+  const { planMode, togglePlanMode, submit, stop, value, disabled, attachments, addFiles, addFromLibrary } = useComposer();
   const hasText = !!value.trim();
+  const isUploading = attachments.some((item) => item.status === "uploading");
+  const [assetModalOpen, setAssetModalOpen] = useState(false);
 
   return (
     <div className="mt-auto flex items-center justify-between gap-1">
       <div className="flex min-w-0 items-center gap-1">
-        <IconButton aria-label="Attach files" title="Attach files" className={actionClassName}>
-          <Paperclip strokeWidth={1.75} />
-        </IconButton>
+        <UploadPopover
+          accept="image"
+          onSelectAsset={() => setAssetModalOpen(true)}
+          onUpload={addFiles}
+          trigger={
+            <IconButton aria-label="Attach files" title="Attach files" className={actionClassName}>
+              <Paperclip strokeWidth={1.75} />
+            </IconButton>
+          }
+        />
         <IconButton
           aria-label="Choose project"
           aria-disabled="true"
@@ -158,8 +222,8 @@ function ComposerActions() {
         ) : (
           <IconButton
             aria-label="Send message"
-            disabled={!hasText}
-            title={hasText ? undefined : "Add a message first"}
+            disabled={!hasText || isUploading}
+            title={!hasText ? "Add a message first" : isUploading ? "Wait for uploads to finish" : undefined}
             onClick={submit}
             className="bg-action text-white hover:bg-action hover:text-white hover:opacity-90 disabled:bg-surface-main-background-2 disabled:text-text-secondary disabled:opacity-50"
           >
@@ -167,6 +231,20 @@ function ComposerActions() {
           </IconButton>
         )}
       </div>
+
+      <SelectAssetModal
+        open={assetModalOpen}
+        onOpenChange={setAssetModalOpen}
+        accept="image"
+        onSelect={(asset) => {
+          addFromLibrary(asset);
+          setAssetModalOpen(false);
+        }}
+        onUploadInstead={(files) => {
+          addFiles(files);
+          setAssetModalOpen(false);
+        }}
+      />
     </div>
   );
 }

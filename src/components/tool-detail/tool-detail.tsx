@@ -103,7 +103,7 @@ export function ToolDetail({ name }: { name: string }) {
         </>
       ) : (
         <div className="mt-6">
-          <ApiTab toolName={name} schema={tool.inputs} />
+          <ApiTab toolName={name} schema={tool.inputs} pricingLines={tool.pricingLines} estimatedCredits={tool.defaultEstimate} />
         </div>
       )}
     </div>

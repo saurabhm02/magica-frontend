@@ -1,6 +1,8 @@
 "use client";
 
 import { createContext, use } from "react";
+import type { AssetItem } from "@/contracts/api";
+import type { AttachmentItem } from "@/lib/types";
 
 type ComposerContextValue = {
   value: string;
@@ -11,6 +13,11 @@ type ComposerContextValue = {
   error: string | null;
   submit: () => void;
   stop: () => void;
+  attachments: AttachmentItem[];
+  addFiles: (files: File[]) => void;
+  addFromLibrary: (asset: AssetItem) => void;
+  removeAttachment: (id: string) => void;
+  retryAttachment: (id: string) => void;
 };
 
 export const ComposerContext = createContext<ComposerContextValue | null>(null);

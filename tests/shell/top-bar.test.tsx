@@ -22,14 +22,25 @@ function renderTopBar() {
 }
 
 describe("TopBar credits popover", () => {
-  it("opens the popover from the credits pill and closes on Escape", async () => {
+  it("opens the popover on hover and closes on Escape", async () => {
     renderTopBar();
 
     const pill = await screen.findByTestId("top-bar-credits");
-    fireEvent.click(pill);
+    fireEvent.mouseEnter(pill.parentElement!);
     expect(await screen.findByRole("dialog", { name: "Credits" })).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Credits" })).not.toBeInTheDocument();
+  });
+
+  it("closes the popover on mouse leave", async () => {
+    renderTopBar();
+
+    const pill = await screen.findByTestId("top-bar-credits");
+    fireEvent.mouseEnter(pill.parentElement!);
+    expect(await screen.findByRole("dialog", { name: "Credits" })).toBeInTheDocument();
+
+    fireEvent.mouseLeave(pill.parentElement!);
     expect(screen.queryByRole("dialog", { name: "Credits" })).not.toBeInTheDocument();
   });
 });

@@ -3,9 +3,11 @@ import { act, fireEvent, render, screen, waitFor, waitForElementToBeRemoved } fr
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatView } from "@/components/chat/chat-view";
+import { resetAttachmentDrafts } from "@/components/attachments/use-attachments";
 import type { Message } from "@/contracts/message";
 import { useLiveRunStore } from "@/stores/live-run.store";
 import { emitError, emitFinished, emitMetadata, emitTextPart, resetRealtimeMock } from "../mocks/trigger-realtime";
+import { getLastUppy, resetUppyMock } from "../mocks/uppy";
 import { queryKeys } from "@/queries/keys";
 import { server } from "../mocks/server";
 
@@ -15,6 +17,8 @@ vi.mock("@trigger.dev/react-hooks", async () => {
   const mock = await import("../mocks/trigger-realtime");
   return { useRealtimeRun: mock.useRealtimeRun, useRealtimeStream: mock.useRealtimeStream };
 });
+vi.mock("@uppy/core", async () => ({ default: (await import("../mocks/uppy")).MockUppy }));
+vi.mock("@uppy/transloadit", async () => ({ default: (await import("../mocks/uppy")).MockTransloadit }));
 
 const chatId = "c1";
 const messagesUrl = `http://localhost:4000/api/v1/chats/${chatId}/messages`;
@@ -25,10 +29,13 @@ const now = new Date().toISOString();
 beforeEach(() => {
   useLiveRunStore.setState({ runs: {} });
   resetRealtimeMock();
+  resetUppyMock();
+  resetAttachmentDrafts();
+  server.use(http.get("http://localhost:4000/api/v1/assets", () => HttpResponse.json({ items: [], nextCursor: null })));
 });
 
 function message(partial: Partial<Message> & Pick<Message, "id" | "role" | "status" | "content">): Message {
-  return { chatId, clientRequestId: null, createdAt: now, updatedAt: now, ...partial };
+  return { chatId, clientRequestId: null, attachments: [], createdAt: now, updatedAt: now, ...partial };
 }
 
 // Backs GET/POST with an in-memory, newest-first list, like the real server:
@@ -476,5 +483,84 @@ describe("ChatView", () => {
 
     await act(async () => emitFinished("run_trigger1"));
     expect(getCount).toBe(countAtComplete + 1);
+  });
+
+  it("sends attachmentIds in the order the files were added", async () => {
+    fakeServer();
+    let postedBody: { attachmentIds?: string[] } = {};
+    server.use(
+      http.post("http://localhost:4000/api/v1/uploads/params", () => HttpResponse.json({ params: "{}", signature: "sha384:x" })),
+      http.post("http://localhost:4000/api/v1/uploads/complete", () =>
+        HttpResponse.json({
+          attachments: [
+            { id: "att-a", source: "upload", kind: "image", mimeType: "image/png", sizeBytes: 1, name: "a.png", url: "https://cdn/a.png", status: "ready", createdAt: now },
+            { id: "att-b", source: "upload", kind: "image", mimeType: "image/png", sizeBytes: 1, name: "b.png", url: "https://cdn/b.png", status: "ready", createdAt: now },
+          ],
+        }),
+      ),
+      http.post(messagesUrl, async ({ request }) => {
+        postedBody = (await request.json()) as { attachmentIds?: string[] };
+        return HttpResponse.json(
+          { chatId, messageId: "m-user", runId: "db-run-1", realtime: { runId: "run_trigger1", accessToken: "tok" } },
+          { status: 201 },
+        );
+      }),
+    );
+
+    const { textarea } = renderChatView();
+    await waitForElementToBeRemoved(() => screen.queryByText("Loading…"));
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const fileA = new File([new Uint8Array(1)], "a.png", { type: "image/png" });
+    const fileB = new File([new Uint8Array(1)], "b.png", { type: "image/png" });
+    await act(async () => fireEvent.change(fileInput, { target: { files: [fileA, fileB] } }));
+
+    const uppy = getLastUppy();
+    const [idA, idB] = uppy.getFiles().map((f) => f.id);
+    act(() => uppy.emit("transloadit:assembly-created", { assembly_id: "asm-1" }, [idA, idB]));
+    await act(async () => uppy.emit("transloadit:complete", { assembly_id: "asm-1" }));
+
+    fireEvent.change(textarea, { target: { value: "crop this" } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send message" })).toBeEnabled());
+    fireEvent.keyDown(textarea, { key: "Enter" });
+
+    await waitFor(() => expect(postedBody.attachmentIds).toEqual(["att-a", "att-b"]));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Remove a.png" })).not.toBeInTheDocument());
+  });
+
+  it("keeps a chat's draft attachments when switching away and back", async () => {
+    fakeServer();
+    const queryClient = new QueryClient();
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <ChatView chatId="c1" />
+      </QueryClientProvider>,
+    );
+    await waitForElementToBeRemoved(() => screen.queryByText("Loading…"));
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await act(async () =>
+      fireEvent.change(fileInput, { target: { files: [new File([new Uint8Array(1)], "a.png", { type: "image/png" })] } }),
+    );
+    expect(screen.getByRole("button", { name: "Open a.png" })).toBeInTheDocument();
+
+    server.use(
+      http.get("http://localhost:4000/api/v1/chats/c2/messages", () => HttpResponse.json({ items: [], nextCursor: null })),
+      http.get("http://localhost:4000/api/v1/chats/c2/active-run", () => HttpResponse.json(null)),
+    );
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <ChatView chatId="c2" />
+      </QueryClientProvider>,
+    );
+    await waitForElementToBeRemoved(() => screen.queryByText("Loading…"));
+    expect(screen.queryByRole("button", { name: "Open a.png" })).not.toBeInTheDocument();
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <ChatView chatId="c1" />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Open a.png" })).toBeInTheDocument();
   });
 });

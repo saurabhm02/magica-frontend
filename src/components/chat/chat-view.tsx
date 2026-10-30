@@ -63,7 +63,7 @@ export function ChatView({ chatId }: { chatId: string }) {
         ) : (
           <>
             <SuggestionChip chatId={chatId} />
-            <ComposerProvider onSubmit={submit} onStop={handleStop} disabled={hasLiveRun && !isPlanWaitpoint}>
+            <ComposerProvider chatId={chatId} onSubmit={submit} onStop={handleStop} disabled={hasLiveRun && !isPlanWaitpoint}>
               <ComposerRoot>
                 <ComposerTextarea placeholder="Send a message..." />
                 <ComposerActions />

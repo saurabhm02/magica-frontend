@@ -30,3 +30,25 @@ export type ArtifactPanelState = {
   step?: StepItem;
   asset?: ArtifactAsset;
 };
+
+export type AttachmentItem = {
+  id: string;
+  name: string;
+  kind: "image" | "video" | "audio";
+  previewUrl?: string;
+  progress: number;
+  status: "uploading" | "ready" | "failed";
+  error?: string;
+  attachmentId?: string;
+  url?: string;
+};
+
+export type PreviewItem = {
+  url: string;
+  kind: "image" | "video" | "audio";
+  name: string;
+  source: "upload" | "generated";
+  createdAt?: string;
+  sizeBytes?: number;
+  prompt?: string;
+};

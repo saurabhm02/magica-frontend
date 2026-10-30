@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -8,15 +9,23 @@ import {
   ComposerTextarea,
 } from "@/components/composer/composer";
 
+vi.mock("@clerk/nextjs", () => ({ useAuth: () => ({ getToken: async () => "token" }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("@uppy/core", async () => ({ default: (await import("../mocks/uppy")).MockUppy }));
+vi.mock("@uppy/transloadit", async () => ({ default: (await import("../mocks/uppy")).MockTransloadit }));
+
 function renderComposer(onSubmit = vi.fn()) {
+  const queryClient = new QueryClient();
   render(
-    <ComposerProvider onSubmit={onSubmit}>
-      <ComposerRoot>
-        <ComposerTextarea />
-        <ComposerActions />
-      </ComposerRoot>
-      <ComposerError />
-    </ComposerProvider>,
+    <QueryClientProvider client={queryClient}>
+      <ComposerProvider onSubmit={onSubmit}>
+        <ComposerRoot>
+          <ComposerTextarea />
+          <ComposerActions />
+        </ComposerRoot>
+        <ComposerError />
+      </ComposerProvider>
+    </QueryClientProvider>,
   );
   return { onSubmit, textarea: screen.getByPlaceholderText("Assign a task or ask anything...") };
 }
@@ -34,7 +43,7 @@ describe("Composer", () => {
     const { onSubmit, textarea } = renderComposer();
     fireEvent.change(textarea, { target: { value: "hello" } });
     fireEvent.keyDown(textarea, { key: "Enter" });
-    expect(onSubmit).toHaveBeenCalledWith("hello", false);
+    expect(onSubmit).toHaveBeenCalledWith("hello", false, []);
   });
 
   it("toggling plan mode sends planMode: true with the message", () => {
@@ -47,7 +56,7 @@ describe("Composer", () => {
 
     fireEvent.change(textarea, { target: { value: "make a plan" } });
     fireEvent.keyDown(textarea, { key: "Enter" });
-    expect(onSubmit).toHaveBeenCalledWith("make a plan", true);
+    expect(onSubmit).toHaveBeenCalledWith("make a plan", true, []);
   });
 
   it("marks look-only actions as disabled with no click handler", () => {

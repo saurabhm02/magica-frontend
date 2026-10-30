@@ -1,6 +1,6 @@
-export function fileNameFromUrl(url: string): { name: string; ext: string } {
-  const name = url.split("/").pop()?.split("?")[0] || url;
+// Only the file extension comes from the URL; the display name always comes from AssetItem.name.
+export function extensionFromUrl(url: string): string {
+  const name = url.split("/").pop()?.split("?")[0] ?? "";
   const dotIndex = name.lastIndexOf(".");
-  const ext = dotIndex === -1 ? "" : name.slice(dotIndex + 1).toUpperCase();
-  return { name, ext };
+  return dotIndex === -1 ? "" : name.slice(dotIndex + 1).toUpperCase();
 }

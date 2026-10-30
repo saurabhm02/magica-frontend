@@ -1,5 +1,6 @@
 
 import { z } from "zod";
+import { Attachment } from "./attachment";
 import { ContentBlock } from "./content-blocks";
 
 export const MessageRole = z.enum(["user", "assistant", "system", "tool"]);
@@ -16,6 +17,7 @@ export const Message = z.object({
   content: z.array(ContentBlock),
   clientRequestId: z.string().nullable(),
   suggestion: z.string().optional(),
+  attachments: z.array(Attachment).default([]),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });

@@ -39,12 +39,16 @@ export function TopBar() {
         </button>
       </div>
 
-      <div className="relative">
+      <div
+        className="relative"
+        onMouseEnter={() => setPopoverOpen(true)}
+        onMouseLeave={() => setPopoverOpen(false)}
+      >
         <button
           type="button"
           data-testid="top-bar-credits"
           aria-expanded={popoverOpen}
-          onClick={() => setPopoverOpen((v) => !v)}
+          onFocus={() => setPopoverOpen(true)}
           className="flex h-8 items-center gap-1.5 rounded-full border border-border-tertiary px-3 text-sm text-text-primary transition-colors duration-75 hover:bg-surface-secondary"
         >
           <CreditsSparkles className="size-4 text-text-secondary" />

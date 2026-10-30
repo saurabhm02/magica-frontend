@@ -1,34 +1,58 @@
-import { getSchemaFields, type SchemaField } from "@/lib/json-schema";
+"use client";
 
-function exampleValue(field: SchemaField): unknown {
-  if (field.default !== undefined) return field.default;
-  if (field.kind === "select") return field.options[0];
-  if (field.kind === "slider") return field.min;
-  if (field.kind === "url") return field.multiple ? ["https://example.com/file.mp4"] : "https://example.com/file.png";
-  if (field.kind === "boolean") return false;
-  return "...";
-}
+import { useState } from "react";
+import { exampleInput, sampleCode, type ApiLanguage } from "@/lib/api-sample-code";
+import { getSchemaFields } from "@/lib/json-schema";
+import { ApiDocs } from "./api-docs";
+import { CodeSample } from "./code-sample";
 
-export function ApiTab({ toolName, schema }: { toolName: string; schema: Record<string, unknown> }) {
+const RESPONSE_EXAMPLE = JSON.stringify(
+  {
+    id: "run_db_1",
+    runId: "run_abc123",
+    toolName: "{toolName}",
+    status: "succeeded",
+    output: { result: "https://..." },
+    credits: 5000,
+    assets: [{ type: "image", url: "https://..." }],
+    createdAt: "2025-01-01T00:00:00.000Z",
+  },
+  null,
+  2,
+);
+
+export function ApiTab({
+  toolName,
+  schema,
+  pricingLines,
+  estimatedCredits,
+}: {
+  toolName: string;
+  schema: Record<string, unknown>;
+  pricingLines: string[];
+  estimatedCredits: number;
+}) {
+  const [language, setLanguage] = useState<ApiLanguage>("python");
   const fields = getSchemaFields(schema);
-  const exampleInput = Object.fromEntries(
-    fields.filter((f) => f.required || f.default !== undefined).map((f) => [f.name, exampleValue(f)]),
-  );
-
-  const curl = [
-    `curl -X POST ${process.env.NEXT_PUBLIC_API_URL}/api/v1/tools/${toolName}/runs \\`,
-    `  -H "Authorization: Bearer YOUR_TOKEN" \\`,
-    `  -H "Content-Type: application/json" \\`,
-    `  -d '${JSON.stringify({ input: exampleInput }, null, 2)}'`,
-  ].join("\n");
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
+  const input = exampleInput(fields);
+  const code = sampleCode(language, toolName, apiUrl, input);
 
   return (
-    <div className="rounded-16 border border-border-secondary bg-surface-primary p-4">
-      <h2 className="mb-2 text-sm font-semibold text-text-primary">Example request</h2>
-      <p className="mb-3 text-xs text-text-secondary">No docs site yet — here&apos;s a curl example you can adapt.</p>
-      <pre className="overflow-x-auto rounded-10 bg-surface-tertiary p-3 text-xs font-mono text-text-primary">
-        <code>{curl}</code>
-      </pre>
+    <div className="grid gap-4 lg:grid-cols-2">
+      <div className="h-[720px]">
+        <CodeSample language={language} onLanguageChange={setLanguage} code={code} />
+      </div>
+      <div className="overflow-y-auto">
+        <ApiDocs
+          toolName={toolName}
+          apiUrl={apiUrl}
+          fields={fields}
+          responseExample={RESPONSE_EXAMPLE.replace("{toolName}", toolName)}
+          pricingLines={pricingLines}
+          estimatedCredits={estimatedCredits}
+        />
+      </div>
     </div>
   );
 }

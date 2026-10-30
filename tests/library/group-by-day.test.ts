@@ -2,7 +2,18 @@ import { describe, expect, it } from "vitest";
 import { groupByDay } from "@/components/library/group-by-day";
 
 function asset(createdAt: string, url = `https://example.com/${createdAt}.png`) {
-  return { url, type: "image" as const, chatId: "c1", toolName: "gpt_image_2", createdAt };
+  return {
+    url,
+    type: "image" as const,
+    source: "generated" as const,
+    name: "image.png",
+    sizeBytes: null,
+    prompt: null,
+    chatId: "c1",
+    toolName: "gpt_image_2",
+    toolInvocationId: "inv-1",
+    createdAt,
+  };
 }
 
 describe("groupByDay", () => {
