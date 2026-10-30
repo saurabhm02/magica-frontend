@@ -24,6 +24,22 @@ type RequestOptions<T> = {
   token: string;
 };
 
+/**
+ * Calls the backend API with the user's token and checks the response against a schema.
+ * Every service function goes through this, so errors always come back in one shape.
+ *
+ * Input:
+ * - path: the API path after /api/v1
+ * - method, body, query: the request (undefined query values are skipped)
+ * - schema: the zod schema the success body must match
+ * - token: the user's auth token
+ *
+ * Output:
+ * - The parsed response body.
+ *
+ * Notes:
+ * - Throws ApiError: "NETWORK" (retryable) if the server can't be reached, the server's own error if it sent one, else "INTERNAL".
+ */
 export async function request<T>(
   path: string,
   { method = "GET", body, query, schema, token }: RequestOptions<T>,

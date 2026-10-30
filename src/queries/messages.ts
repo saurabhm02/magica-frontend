@@ -20,6 +20,18 @@ function keepPendingMessage(chatId: string, page: ListMessagesResponse): ListMes
   return { ...page, items: [pending, ...page.items] };
 }
 
+/**
+ * Loads a chat's messages page by page, newest page first.
+ *
+ * Input:
+ * - chatId: the chat to load
+ *
+ * Output:
+ * - The React Query infinite query: pages of messages plus fetchNextPage for older ones.
+ *
+ * Notes:
+ * - The first page keeps a still-sending user message on top, so it does not vanish while the send is in flight.
+ */
 export function useMessages(chatId: string) {
   const withAuth = useAuthedApi();
 
@@ -81,6 +93,21 @@ function insertOptimisticUserMessage(
 
 type SendMessageVars = Omit<SendMessageRequest, "clientRequestId"> & { chatId: string; attachments?: AttachmentItem[] };
 
+/**
+ * Sends a user message and shows it in the chat right away, before the server answers.
+ *
+ * Input (to mutate):
+ * - chatId, content, attachmentIds, planMode, model, webhook: what to send
+ * - attachments: the composer items, used only to draw the optimistic message
+ *
+ * Output:
+ * - The React Query mutation. On success it resolves to the server's send response.
+ *
+ * Notes:
+ * - Retrying the same text in the same chat reuses the clientRequestId, so the server never creates a duplicate.
+ * - The id is dropped after a success, so sending the same text again later counts as a new message.
+ * - The optimistic message is also kept in a pending map until the request settles, then messages are refetched.
+ */
 export function useSendMessage() {
   const withAuth = useAuthedApi();
   const queryClient = useQueryClient();
@@ -116,6 +143,16 @@ export function useSendMessage() {
   });
 }
 
+/**
+ * Fetches the chat's currently running agent run, if any.
+ * Used to pick a live run back up after a reload or chat switch.
+ *
+ * Input:
+ * - chatId: the chat to check (the query is off while it is empty)
+ *
+ * Output:
+ * - The React Query result: the active run with its realtime ids and token, or null when nothing is running.
+ */
 export function useActiveRun(chatId: string) {
   const withAuth = useAuthedApi();
   return useQuery({
@@ -125,6 +162,16 @@ export function useActiveRun(chatId: string) {
   });
 }
 
+/**
+ * Sends the user's answer to a paused run (a waitpoint, e.g. a question or plan approval).
+ *
+ * Input:
+ * - chatId: the chat the run belongs to
+ * - mutate({ waitpointId, body }): which waitpoint to answer and the answer itself
+ *
+ * Output:
+ * - The React Query mutation. It does not touch the cache; the live run picks up the change.
+ */
 export function useRespondWaitpoint(chatId: string) {
   const withAuth = useAuthedApi();
 
@@ -134,6 +181,18 @@ export function useRespondWaitpoint(chatId: string) {
   });
 }
 
+/**
+ * Stops a running agent run.
+ *
+ * Input:
+ * - mutate({ chatId, runId }): the chat and the run to cancel
+ *
+ * Output:
+ * - The React Query mutation.
+ *
+ * Notes:
+ * - On success it refetches messages, the active run, credits and the credit ledger, since a cancel can change all four.
+ */
 export function useCancelRun() {
   const withAuth = useAuthedApi();
   const queryClient = useQueryClient();

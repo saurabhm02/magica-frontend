@@ -19,6 +19,24 @@ export type StepListProps = {
   reasoning?: string;
 };
 
+/**
+ * Shows what the agent did or is doing for one reply: tool steps and reasoning rows.
+ *
+ * Input:
+ * - steps: tool and reasoning steps in order
+ * - isLive: true while the run is still going
+ * - status: the run status
+ * - thinkingStartedAt: start time for the elapsed timer
+ * - reasoning: the live reasoning stream
+ *
+ * Output:
+ * - A status line while thinking or stopping, a live header and step list while working,
+ *   or a collapsible summary once done. Null if there are no tool steps.
+ *
+ * Notes:
+ * - While working, thinking for the next step shows as an extra grey row at the end.
+ * - Reasoning rows never count toward the summary line.
+ */
 export function StepList({ steps, isLive, status, thinkingStartedAt, reasoning }: StepListProps) {
   const openStepArtifact = useUiStore((s) => s.openStepArtifact);
   const [summaryExpanded, setSummaryExpanded] = useState(false);

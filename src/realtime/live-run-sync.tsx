@@ -11,6 +11,21 @@ import { FINAL_STATUSES, REASONING_STREAM_ID, REST_POLL_INTERVAL_MS, TEXT_STREAM
 import { useLiveRunStore } from "@/stores/live-run.store";
 
 
+/**
+ * Keeps one chat's live run in the store in sync with the realtime run on Trigger.dev.
+ * Renders nothing visible; it only mounts the realtime subscriptions.
+ *
+ * Input:
+ * - chatId: the chat whose live run to follow
+ *
+ * Output:
+ * - A RealtimeSubscription while a run is known, plus a short LingerSubscription after it ends.
+ *
+ * Notes:
+ * - On mount or chat switch it reconnects to the server's active run, including a pending waitpoint.
+ * - When the run ends it refreshes credits, active run and messages once, then clears the live run.
+ * - On a stream error it polls the active run over REST until it can reconnect, or clears if the run is gone.
+ */
 export function LiveRunSync({ chatId }: { chatId: string }) {
   const triggerRunId = useLiveRunStore((s) => s.runs[chatId]?.triggerRunId);
   const accessToken = useLiveRunStore((s) => s.runs[chatId]?.accessToken);
@@ -148,6 +163,22 @@ function LingerSubscription({
   return null;
 }
 
+/**
+ * Subscribes to one Trigger.dev run and copies what arrives into the live-run store.
+ *
+ * Input:
+ * - chatId, runId, accessToken: which run to follow and the token to read it
+ * - reconnectNonce: changes on every reconnect so the hooks open a fresh subscription
+ * - setMetadata, setText, setIsError, setFinishedRunId: where to send updates
+ *
+ * Output:
+ * - Renders nothing.
+ *
+ * Notes:
+ * - Run metadata (status, tools, waitpoint, title) is validated before it is stored; invalid metadata is ignored.
+ * - Text and reasoning streams are joined and stored whole on each update.
+ * - Any run or text stream error is reported up so LiveRunSync can fall back to REST.
+ */
 function RealtimeSubscription({
   chatId,
   runId,

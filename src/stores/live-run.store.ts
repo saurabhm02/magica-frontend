@@ -52,6 +52,19 @@ type LiveRunState = {
   reset: () => void;
 };
 
+/**
+ * Client-side state for agent runs that are in progress, one entry per chat.
+ * A live run holds the run and realtime ids, the access token, the status, the streamed reply
+ * text and reasoning, and the latest metadata (tools, assets, waitpoint, plan, current step, error).
+ *
+ * Output:
+ * - runs keyed by chatId, plus actions to start, connect, update, stop, fail and clear a run.
+ *
+ * Notes:
+ * - connect keeps any text and tools already streamed, so reconnecting does not wipe the screen.
+ * - A late metadata update cannot move a "stopping" run back to a non-final status.
+ * - Each metadata update is a full snapshot, so a missing waitpoint means it was resolved.
+ */
 export const useLiveRunStore = create<LiveRunState>((set) => ({
   runs: {},
 

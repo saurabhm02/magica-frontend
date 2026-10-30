@@ -42,6 +42,22 @@ export function resetAttachmentDrafts() {
   draftsByScope.clear();
 }
 
+/**
+ * Manages the files attached to a message draft: validate, upload through Transloadit, and track progress.
+ *
+ * Input:
+ * - scopeId: which draft these files belong to (usually the chat)
+ * - options.maxFiles: the most files allowed (defaults to the per-message limit)
+ *
+ * Output:
+ * - items: the attachments with status, progress, preview and saved id/url
+ * - addFiles, addFromLibrary, removeAttachment, retryAttachment, clear
+ *
+ * Notes:
+ * - Drafts are kept per scopeId, so switching chats restores that chat's files instead of showing another's.
+ * - Files that fail validation are still listed, marked failed with the reason.
+ * - Local preview URLs are revoked on remove and clear.
+ */
 export function useAttachments(scopeId: string, options?: { maxFiles?: number }) {
   const maxFiles = options?.maxFiles ?? MAX_ATTACHMENTS_PER_MESSAGE;
   const withAuth = useAuthedApi();

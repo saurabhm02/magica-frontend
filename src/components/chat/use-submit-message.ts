@@ -7,6 +7,20 @@ import { useSendMessage } from "@/queries/messages";
 import type { AttachmentItem } from "@/lib/types";
 import { useLiveRunStore } from "@/stores/live-run.store";
 
+/**
+ * Returns the composer's submit function: creates a chat if needed, sends the message, and starts the live run.
+ *
+ * Input:
+ * - chatId: the current chat, or undefined on the new-chat screen
+ *
+ * Output:
+ * - submit(content, planMode?, attachments?): resolves once the send is handled
+ *
+ * Notes:
+ * - Existing chat: waits for the send; on failure it clears the live run and rethrows.
+ * - New chat: navigates to the chat right away and marks the live run failed if the send fails later.
+ * - Only attachments that finished uploading (have an attachmentId) are sent.
+ */
 export function useSubmitMessage(chatId?: string) {
   const router = useRouter();
   const { mutateAsync: createChat } = useCreateChat();

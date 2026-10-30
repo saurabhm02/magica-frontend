@@ -136,7 +136,8 @@ export function AssistantMessage({
   const fullText = textBlocks.join("\n\n");
   const timeStr = formatMessageTime(message.createdAt);
   const turnTotalCredits = steps.reduce((sum, s) => sum + (s.credits ?? 0), 0);
-  const formattedTurnCredits = turnTotalCredits > 0 ? `${formatCredits(turnTotalCredits)} credits` : undefined;
+  // Up to 3 decimals so a small step (a 0.005M crop) still shows in the total: 0.07M + 0.005M = 0.075M, not 0.07M.
+  const formattedTurnCredits = turnTotalCredits > 0 ? `${formatCredits(turnTotalCredits, { precision: 3 })} credits` : undefined;
   const usageLine = usage && usage.totalTokens > 0 ? formatUsage(usage) : undefined;
 
   const handleCopy = async () => {

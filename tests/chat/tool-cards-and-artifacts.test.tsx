@@ -456,6 +456,38 @@ describe("StepList reasoning rows", () => {
   });
 });
 
+describe("Turn credit total", () => {
+  it("adds every tool's cost without rounding a small step away (0.07M + 0.005M = 0.075M)", async () => {
+    const message: Message = {
+      id: "m-credits",
+      chatId,
+      role: "assistant",
+      status: "complete",
+      clientRequestId: null,
+      attachments: [],
+      createdAt: now,
+      updatedAt: now,
+      content: [
+        { type: "tool_use", id: "t-gen", name: "gpt_image_2", input: { prompt: "red mug" }, label: "Generating your image" },
+        { type: "tool_result", toolUseId: "t-gen", output: { images: ["https://example.com/mug.png"] }, credits: 70_000 },
+        { type: "tool_use", id: "t-crop", name: "crop_image", input: { image_url: "https://example.com/mug.png" }, label: "Cropping your image" },
+        { type: "tool_result", toolUseId: "t-crop", output: { image_url: "https://example.com/mug-square.png" }, credits: 5_000 },
+        { type: "text", text: "Done!" },
+      ],
+    };
+    server.use(http.get(messagesUrl, () => HttpResponse.json({ items: [message], nextCursor: null })));
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChatMessages chatId={chatId} onRetry={vi.fn()} />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByTestId("message-credits")).toHaveTextContent("0.075M credits");
+  });
+});
+
 describe("ChatMessages with saved tool content blocks", () => {
   it("renders saved tool_use and tool_result using StepList and renders generated media", async () => {
     const savedMessage: Message = {
