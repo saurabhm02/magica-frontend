@@ -5,15 +5,23 @@ import { ComposerActions, ComposerError, ComposerProvider, ComposerRoot, Compose
 import { queryKeys } from "@/queries/keys";
 import { useCancelRun } from "@/queries/messages";
 import { LiveRunSync } from "@/realtime/live-run-sync";
+import { parseQuestions } from "@/lib/waitpoint";
 import { useLiveRunStore } from "@/stores/live-run.store";
 import { useAutoScroll } from "./use-auto-scroll";
 import { useSubmitMessage } from "./use-submit-message";
 import { ChatMessages } from "./chat-messages";
 import { LiveBubble } from "./live-bubble";
+import { SuggestionChip } from "./suggestion-chip";
+import { WaitpointCard } from "./waitpoint-card";
 
 export function ChatView({ chatId }: { chatId: string }) {
   const liveRunStatus = useLiveRunStore((s) => s.runs[chatId]?.status);
+  const waitpoint = useLiveRunStore((s) => s.runs[chatId]?.waitpoint);
   const hasLiveRun = liveRunStatus !== undefined && liveRunStatus !== "failed" && liveRunStatus !== "cancelled";
+  // A plan waitpoint shows its own card in the message stream; the composer stays
+  // usable so the user can send a message instead (the server treats it as feedback).
+  const isPlanWaitpoint = waitpoint?.type === "plan";
+  const showQuestionCard = !!waitpoint && !isPlanWaitpoint;
   const stop = useLiveRunStore((s) => s.stop);
   const setStatus = useLiveRunStore((s) => s.setStatus);
   const cancelRun = useCancelRun();
@@ -45,13 +53,25 @@ export function ChatView({ chatId }: { chatId: string }) {
         </div>
       </div>
       <div className="px-6 pb-6">
-        <ComposerProvider onSubmit={submit} onStop={handleStop} disabled={hasLiveRun}>
-          <ComposerRoot>
-            <ComposerTextarea />
-            <ComposerActions />
-          </ComposerRoot>
-          <ComposerError />
-        </ComposerProvider>
+        {showQuestionCard && waitpoint ? (
+          <WaitpointCard
+            chatId={chatId}
+            waitpointId={waitpoint.id}
+            questions={parseQuestions(waitpoint.questions)}
+            expiresAt={waitpoint.expiresAt}
+          />
+        ) : (
+          <>
+            <SuggestionChip chatId={chatId} />
+            <ComposerProvider onSubmit={submit} onStop={handleStop} disabled={hasLiveRun && !isPlanWaitpoint}>
+              <ComposerRoot>
+                <ComposerTextarea placeholder="Send a message..." />
+                <ComposerActions />
+              </ComposerRoot>
+              <ComposerError />
+            </ComposerProvider>
+          </>
+        )}
       </div>
     </div>
   );

@@ -5,7 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatView } from "@/components/chat/chat-view";
 import type { Message } from "@/contracts/message";
 import { useLiveRunStore } from "@/stores/live-run.store";
-import { emitError, emitMetadata, emitTextPart, resetRealtimeMock } from "../mocks/trigger-realtime";
+import { emitError, emitFinished, emitMetadata, emitTextPart, resetRealtimeMock } from "../mocks/trigger-realtime";
+import { queryKeys } from "@/queries/keys";
 import { server } from "../mocks/server";
 
 vi.mock("@clerk/nextjs", () => ({ useAuth: () => ({ getToken: async () => "token" }) }));
@@ -56,7 +57,7 @@ function renderChatView() {
       <ChatView chatId={chatId} />
     </QueryClientProvider>,
   );
-  return { textarea: screen.getByPlaceholderText("Assign a task or ask anything...") };
+  return { textarea: screen.getByPlaceholderText("Send a message..."), queryClient };
 }
 
 async function send(textarea: HTMLElement, text: string) {
@@ -65,6 +66,16 @@ async function send(textarea: HTMLElement, text: string) {
   fireEvent.keyDown(textarea, { key: "Enter" });
   await waitFor(() => expect(textarea).toHaveValue(""));
 }
+
+// A running tool step, so the live header shows "<label> <seconds>s".
+const TOOL = (startedAt: string) => ({
+  id: "t1",
+  name: "gpt_image_2",
+  status: "running" as const,
+  startedAt,
+  renderKey: "image-result",
+  label: "Generating image",
+});
 
 describe("ChatView", () => {
   it("shows the reply exactly once after it streams and completes", async () => {
@@ -146,25 +157,27 @@ describe("ChatView", () => {
       fakeServer();
       const { textarea } = renderChatView();
       await send(textarea, "hello");
-      expect(await screen.findByText(/Thinking/)).toBeInTheDocument();
+      expect(await screen.findByText("Thinking")).toBeInTheDocument();
 
+      const firstStart = new Date().toISOString();
       await act(async () => {
+        emitMetadata("run_trigger1", { status: "working", thinkingStartedAt: firstStart, tools: [TOOL(firstStart)] });
         await vi.advanceTimersByTimeAsync(4000);
       });
-      expect(screen.getByText("Thinking… 4s")).toBeInTheDocument();
+      expect(screen.getByText("Generating image 4s")).toBeInTheDocument();
 
       const later = new Date(Date.now() + 10000).toISOString();
       await act(async () => {
-        emitMetadata("run_trigger1", { status: "thinking", thinkingStartedAt: later });
+        emitMetadata("run_trigger1", { status: "working", thinkingStartedAt: later, tools: [TOOL(firstStart)] });
       });
 
-      expect(screen.getByText("Thinking… 4s")).toBeInTheDocument();
-      expect(screen.queryByText("Thinking… 0s")).not.toBeInTheDocument();
+      expect(screen.getByText("Generating image 4s")).toBeInTheDocument();
+      expect(screen.queryByText("Generating image 0s")).not.toBeInTheDocument();
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(3000);
       });
-      expect(screen.getByText("Thinking… 7s")).toBeInTheDocument();
+      expect(screen.getByText("Generating image 7s")).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
@@ -188,15 +201,15 @@ describe("ChatView", () => {
     emitMetadata("run_trigger1", {
       status: "working",
       thinkingStartedAt: startedAt,
-      tools: [],
+      tools: [TOOL(startedAt)],
     });
 
     renderChatView();
 
     // Reconnected to live run and timer is at least 5s (not 0s)
-    const workingText = await screen.findByText(/Working [5-9]s/);
+    const workingText = await screen.findByText(/Generating image [5-9]s/);
     expect(workingText).toBeInTheDocument();
-    expect(screen.queryByText("Working 0s")).not.toBeInTheDocument();
+    expect(screen.queryByText("Generating image 0s")).not.toBeInTheDocument();
   });
 
   it("stopping a run shows the interrupted card with a Retry button, and the composer is usable right away", async () => {
@@ -241,7 +254,7 @@ describe("ChatView", () => {
     expect(screen.getAllByText("Some partial text")).toHaveLength(1);
 
     // Composer is usable right away
-    expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send message" })).toBeInTheDocument();
   });
 
   it("a failed cancel request goes back to the working status and shows an inline error", async () => {
@@ -260,8 +273,8 @@ describe("ChatView", () => {
     await act(async () => fireEvent.click(stopBtn));
 
     expect(await screen.findByText("Couldn't stop. Try again.")).toBeInTheDocument();
-    // Back to "Working", the Stop button is still shown (run still active)
-    expect(screen.getByText(/Working/)).toBeInTheDocument();
+    // Back to the active state (no tool steps, so "Thinking"); Stop is still shown
+    expect(screen.getByText("Thinking")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
   });
 
@@ -369,5 +382,99 @@ describe("ChatView", () => {
     // If the active-run cache hadn't been cleared before clear(), reload-recovery would
     // reconnect right here and show Thinking/Working again.
     expect(screen.queryByText(/Thinking|Working/)).not.toBeInTheDocument();
+  });
+
+  it("renames the chat in the sidebar cache as soon as metadata reports a title", async () => {
+    fakeServer();
+    const { textarea, queryClient } = renderChatView();
+    queryClient.setQueryData(queryKeys.chats, {
+      pages: [{ items: [{ id: chatId, title: "New chat", pinned: false, createdAt: now, updatedAt: now }], nextCursor: null }],
+      pageParams: [undefined],
+    });
+    await send(textarea, "hello");
+
+    await act(async () => emitMetadata("run_trigger1", { status: "working", thinkingStartedAt: now, chatTitle: "Coffee mug photo" }));
+
+    const cached = queryClient.getQueryData(queryKeys.chats) as { pages: { items: { id: string; title: string }[] }[] };
+    expect(cached.pages[0]?.items[0]?.title).toBe("Coffee mug photo");
+  });
+
+  it("shows the saved suggestion as a chip and sends it on click", async () => {
+    const items = fakeServer();
+    items.unshift(
+      message({
+        id: "m-assistant",
+        role: "assistant",
+        status: "complete",
+        content: [{ type: "text", text: "Here's your photo" }],
+        suggestion: "try a lifestyle setting",
+      }),
+    );
+    let postedContent: string | undefined;
+    server.use(
+      http.post(messagesUrl, async ({ request }) => {
+        const body = (await request.json()) as { content: string };
+        postedContent = body.content;
+        return HttpResponse.json(
+          { chatId, messageId: "m-user-2", runId: "db-run-2", realtime: { runId: "run_trigger2", accessToken: "tok" } },
+          { status: 201 },
+        );
+      }),
+    );
+
+    renderChatView();
+    const chip = await screen.findByRole("button", { name: "try a lifestyle setting" });
+    expect(screen.getByText("Suggested")).toBeInTheDocument();
+
+    fireEvent.click(chip);
+    await waitFor(() => expect(postedContent).toBe("try a lifestyle setting"));
+  });
+
+  it("hides the suggestion chip while a run is active", async () => {
+    const items = fakeServer();
+    items.unshift(
+      message({
+        id: "m-assistant",
+        role: "assistant",
+        status: "complete",
+        content: [{ type: "text", text: "Here's your photo" }],
+        suggestion: "try a lifestyle setting",
+      }),
+    );
+
+    const { textarea } = renderChatView();
+    await screen.findByText("try a lifestyle setting");
+
+    fireEvent.change(textarea, { target: { value: "one more thing" } });
+    fireEvent.keyDown(textarea, { key: "Enter" });
+    await waitFor(() => expect(textarea).toHaveValue(""));
+    expect(screen.queryByText("try a lifestyle setting")).not.toBeInTheDocument();
+  });
+
+  it("refetches messages once more when the trigger run finishes after it's already marked complete", async () => {
+    let getCount = 0;
+    const items = fakeServer();
+    server.use(
+      http.get(messagesUrl, () => {
+        getCount += 1;
+        return HttpResponse.json({ items, nextCursor: null });
+      }),
+    );
+
+    const { textarea } = renderChatView();
+    await send(textarea, "hello");
+
+    items.unshift(
+      message({ id: "m-assistant", role: "assistant", status: "complete", content: [{ type: "text", text: "done" }] }),
+    );
+    await act(async () => emitMetadata("run_trigger1", { status: "complete", thinkingStartedAt: now }));
+    await waitFor(() => expect(useLiveRunStore.getState().runs[chatId]).toBeUndefined());
+
+    const countAtComplete = getCount;
+    await act(async () => emitFinished("run_trigger1"));
+    await waitFor(() => expect(getCount).toBe(countAtComplete + 1));
+
+    await act(async () => emitFinished("run_trigger1"));
+    expect(getCount).toBe(countAtComplete + 1);
   });
 });

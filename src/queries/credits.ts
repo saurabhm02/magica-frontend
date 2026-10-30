@@ -1,7 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import type { ListLedgerQuery } from "@/contracts/api";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { getCreditBalance, getCreditLedger } from "@/services/credits.service";
 import { queryKeys } from "./keys";
 import { useAuthedApi } from "./use-authed-api";
@@ -15,11 +14,13 @@ export function useCredits() {
   });
 }
 
-export function useCreditLedger(query?: ListLedgerQuery) {
+export function useCreditLedger() {
   const withAuth = useAuthedApi();
 
-  return useQuery({
-    queryKey: [...queryKeys.creditLedger, query],
-    queryFn: () => withAuth((token) => getCreditLedger(token, query)),
+  return useInfiniteQuery({
+    queryKey: queryKeys.creditLedger,
+    queryFn: ({ pageParam }: { pageParam?: string }) => withAuth((token) => getCreditLedger(token, { cursor: pageParam })),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 }

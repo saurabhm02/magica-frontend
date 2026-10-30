@@ -4,16 +4,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { MediaAsset } from "./media-asset";
 
-export function AssistantText({
-  text,
-  cursor,
-  renderedUrls,
-}: {
-  text: string;
-  cursor?: boolean;
-  renderedUrls?: Set<string>;
-}) {
-  if (!text && !cursor) return null;
+export function AssistantText({ text, renderedUrls }: { text: string; renderedUrls?: Set<string> }) {
+  if (!text) return null;
 
   return (
     <div className="text-sm text-text-primary leading-relaxed">
@@ -74,7 +66,6 @@ export function AssistantText({
           {text}
         </ReactMarkdown>
       ) : null}
-      {cursor && <span className="animate-pulse ml-0.5">▍</span>}
     </div>
   );
 }

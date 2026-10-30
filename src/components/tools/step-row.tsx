@@ -5,6 +5,10 @@ import { formatCredits } from "@/lib/constants";
 import type { StepItem } from "@/lib/types";
 import { useElapsedTime } from "./use-elapsed-time";
 
+// These render keys show longer, multi-line field values (a question + its answer, a
+// plan step + its description), so they skip the default single-line/mono treatment.
+const MULTILINE_FIELD_RENDER_KEYS = new Set(["request-user-options", "plan"]);
+
 export function StepRow({
   step,
   expanded,
@@ -68,12 +72,19 @@ export function StepRow({
         <div className="mt-2.5 pt-2 border-t border-border-secondary/60 flex flex-col gap-1.5 text-xs">
           {step.fields &&
             step.fields.length > 0 &&
-            step.fields.map((f, i) => (
-              <div key={i} className="flex gap-4">
-                <span className="text-text-secondary w-28 shrink-0">{f.label}</span>
-                <span className="text-text-primary font-mono truncate">{f.value}</span>
-              </div>
-            ))}
+            step.fields.map((f, i) =>
+              MULTILINE_FIELD_RENDER_KEYS.has(step.renderKey) ? (
+                <div key={i} className="flex gap-4">
+                  <span className="text-text-secondary w-16 shrink-0">{f.label}</span>
+                  <span className="text-text-primary whitespace-pre-line">{f.value}</span>
+                </div>
+              ) : (
+                <div key={i} className="flex gap-4">
+                  <span className="text-text-secondary w-28 shrink-0">{f.label}</span>
+                  <span className="text-text-primary font-mono truncate">{f.value}</span>
+                </div>
+              ),
+            )}
           {step.status === "succeeded" && formattedCredits && (
             <div className="flex gap-4">
               <span className="text-text-secondary w-28 shrink-0">Credits used</span>
@@ -91,3 +102,4 @@ export function StepRow({
     </div>
   );
 }
+

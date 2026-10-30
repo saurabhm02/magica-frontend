@@ -8,7 +8,7 @@ next-env.d.ts
 .vercel
 playwright-report
 test-results
-
+playwright/.clerk
 .env
 .env.*
 !.env.example

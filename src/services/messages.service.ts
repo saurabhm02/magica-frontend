@@ -3,6 +3,8 @@ import {
   CancelRunResponse,
   ListMessagesQuery,
   ListMessagesResponse,
+  RespondWaitpointInput,
+  RespondWaitpointResponse,
   SendMessageRequest,
   SendMessageResponse,
 } from "@/contracts/api";
@@ -22,4 +24,13 @@ export function cancelRun(token: string, chatId: string, runId: string) {
 
 export function getActiveRun(token: string, chatId: string) {
   return request(`/chats/${chatId}/active-run`, { method: "GET", schema: ActiveRunResponse, token });
+}
+
+export function respondWaitpoint(token: string, chatId: string, waitpointId: string, body: RespondWaitpointInput) {
+  return request(`/chats/${chatId}/waitpoints/${waitpointId}/respond`, {
+    method: "POST",
+    body,
+    schema: RespondWaitpointResponse,
+    token,
+  });
 }

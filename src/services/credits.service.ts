@@ -5,6 +5,6 @@ export function getCreditBalance(token: string) {
   return request("/me/credits", { schema: CreditBalanceResponse, token });
 }
 
-export function getCreditLedger(token: string, query?: ListLedgerQuery) {
+export function getCreditLedger(token: string, query?: Partial<ListLedgerQuery>) {
   return request("/me/credits/ledger", { schema: ListLedgerResponse, query, token });
 }

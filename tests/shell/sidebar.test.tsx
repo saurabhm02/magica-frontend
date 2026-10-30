@@ -14,10 +14,14 @@ beforeEach(() => {
   mockPathname.current = "/";
   useUiStore.setState({ sidebarCollapsed: false, mobileDrawerOpen: false });
   server.use(
-    http.get("http://localhost:4000/api/v1/chats", () => HttpResponse.json({ items: [], nextCursor: null })),
+    http.get("http://localhost:4000/api/v1/chats", () =>
+      HttpResponse.json({ items: [{ id: "1", title: "Coffee chat", pinned: false, createdAt: now, updatedAt: now }], nextCursor: null }),
+    ),
     http.get("http://localhost:4000/api/v1/me/credits", () => HttpResponse.json({ balance: 29_010_000 })),
   );
 });
+
+const now = new Date().toISOString();
 
 function renderSidebar() {
   const queryClient = new QueryClient();
@@ -48,5 +52,36 @@ describe("Sidebar", () => {
 
     expect(screen.getByRole("link", { name: "Tasks" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "New task" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("collapses and expands recent tasks", async () => {
+    renderSidebar();
+
+    expect(await screen.findByText("Coffee chat")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Recent tasks/ }));
+    expect(screen.queryByText("Coffee chat")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Recent tasks/ }));
+    expect(await screen.findByText("Coffee chat")).toBeInTheDocument();
+  });
+
+  it("links View all to the tasks page", async () => {
+    renderSidebar();
+    await screen.findByText("Coffee chat");
+
+    expect(screen.getByRole("link", { name: "View all" })).toHaveAttribute("href", "/tasks");
+  });
+
+  it("opens API / MCP docs in a new tab and keeps Projects disabled", () => {
+    renderSidebar();
+
+    const apiLink = screen.getByRole("link", { name: "API / MCP" });
+    expect(apiLink).toHaveAttribute("target", "_blank");
+    expect(apiLink).toHaveAttribute("href", process.env.NEXT_PUBLIC_DOCS_URL);
+
+    const projects = screen.getByRole("button", { name: "Projects" });
+    expect(projects).toHaveAttribute("aria-disabled", "true");
+    expect(projects).toHaveAttribute("title", "Not available in this demo");
   });
 });

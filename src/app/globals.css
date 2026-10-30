@@ -34,6 +34,8 @@
   --color-border-secondary: #222222;
   --color-border-tertiary: #222222;
   --color-border-primary: #a9a9a9;
+  --color-sidebar-edge: #27272a;
+  --color-action: #2b2b2b;
   --color-brand-primary: #4f46e6;
   --color-error: #dc2626;
   --color-success: #16a34a;
@@ -79,4 +81,31 @@
   html {
     @apply font-sans;
   }
+  /* Tailwind 4 gives buttons the default arrow; show the hand on anything clickable.
+     Look-only buttons (aria-disabled) keep the arrow so they don't look actionable. */
+  button:not(:disabled):not([aria-disabled="true"]),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="menuitem"],
+  summary,
+  select,
+  label[for] {
+    cursor: pointer;
+  }
+}
+
+/* "Thinking" shimmer, like Magica: a light band sweeping across grey text. */
+@keyframes text-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+.text-shimmer {
+  background: linear-gradient(90deg, var(--color-text-secondary) 40%, var(--color-text-primary) 50%, var(--color-text-secondary) 60%) 0 0 / 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: text-shimmer 2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .text-shimmer { animation: none; background: none; color: var(--color-text-secondary); }
 }

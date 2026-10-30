@@ -1,12 +1,16 @@
 "use client";
 
-import { ArrowUp, ListChecks, Paperclip, Square } from "lucide-react";
+import { ArrowUp, AudioLines, Folder, ListChecks, Mic, Paperclip, Plug, Puzzle, Square } from "lucide-react";
 import { useRef, useState } from "react";
+import { NOT_AVAILABLE_TOOLTIP } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { IconButton } from "@/components/ui/icon-button";
 import { ComposerContext, useComposer } from "./composer-context";
 
 const MAX_TEXTAREA_HEIGHT = 384;
+
+// Composer buttons: grey icon, darker round background on hover (measured on magica.com).
+const actionClassName = "hover:bg-surface-main-background-2 hover:text-text-primary";
 
 function ComposerProvider({
   children,
@@ -15,7 +19,7 @@ function ComposerProvider({
   disabled = false,
 }: {
   children: React.ReactNode;
-  onSubmit?: (value: string) => void | Promise<void>;
+  onSubmit?: (value: string, planMode: boolean) => void | Promise<void>;
   onStop?: () => void | Promise<void>;
   disabled?: boolean;
 }) {
@@ -29,7 +33,7 @@ function ComposerProvider({
     setError(null);
     setValue("");
     try {
-      await onSubmit(text);
+      await onSubmit(text, planMode);
     } catch (err) {
       setValue(text);
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -55,19 +59,26 @@ function ComposerProvider({
   );
 }
 
-function ComposerRoot({ className, ...props }: React.ComponentProps<"div">) {
+function ComposerRoot({ className, children, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       className={cn(
-        "mx-auto flex w-[900px] max-w-full flex-col gap-3 rounded-24 bg-gradient-to-b from-surface-primary to-surface-main-background px-4 pt-4 pb-3",
+        "group/composer relative mx-auto flex max-h-[70vh] min-h-[132px] w-[900px] max-w-full flex-col gap-3 overflow-clip rounded-24 bg-surface-main-background-3 px-4 pt-4 pb-3",
         className,
       )}
       {...props}
-    />
+    >
+      {/* Magica draws the composer border as a separate layer so it can brighten on hover. */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 rounded-24 shadow-[inset_0_0_0_0.3px_var(--color-border-tertiary)] transition-shadow group-hover/composer:shadow-[inset_0_0_0_1px_rgb(169_169_169/0.55)]"
+      />
+      {children}
+    </div>
   );
 }
 
-function ComposerTextarea() {
+function ComposerTextarea({ placeholder = "Assign a task or ask anything..." }: { placeholder?: string }) {
   const { value, setValue, submit } = useComposer();
   const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -90,46 +101,72 @@ function ComposerTextarea() {
           submit();
         }
       }}
-      placeholder="Assign a task or ask anything..."
+      placeholder={placeholder}
       rows={1}
-      className="max-h-[384px] min-h-6 resize-none overflow-y-auto bg-transparent text-sm leading-6 text-text-primary placeholder:text-text-secondary focus:outline-none"
+      className="max-h-[384px] min-h-6 resize-none overflow-y-auto bg-transparent text-sm leading-6 text-text-primary placeholder:text-text-tertiary focus:outline-none"
     />
   );
 }
 
 function ComposerActions() {
   const { planMode, togglePlanMode, submit, stop, value, disabled } = useComposer();
+  const hasText = !!value.trim();
 
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-1">
-        <IconButton aria-label="Attach files">
-          <Paperclip />
+    <div className="mt-auto flex items-center justify-between gap-1">
+      <div className="flex min-w-0 items-center gap-1">
+        <IconButton aria-label="Attach files" title="Attach files" className={actionClassName}>
+          <Paperclip strokeWidth={1.75} />
         </IconButton>
-        <IconButton aria-label="Plan mode" aria-pressed={planMode} onClick={togglePlanMode}>
-          <ListChecks />
+        <IconButton
+          aria-label="Choose project"
+          aria-disabled="true"
+          title={NOT_AVAILABLE_TOOLTIP}
+          className={cn(actionClassName, "w-auto max-w-56 gap-1 px-2 text-sm font-medium")}
+        >
+          <Folder strokeWidth={1.75} />
+          <span className="truncate">Choose project</span>
+        </IconButton>
+        <IconButton aria-label="Skills" aria-disabled="true" title={NOT_AVAILABLE_TOOLTIP} className={actionClassName}>
+          <Puzzle strokeWidth={1.75} />
+        </IconButton>
+        <IconButton aria-label="Connect apps" aria-disabled="true" title={NOT_AVAILABLE_TOOLTIP} className={actionClassName}>
+          <Plug strokeWidth={1.75} className="-rotate-45" />
+        </IconButton>
+        <IconButton aria-label="Plan mode" title="Plan mode" aria-pressed={planMode} onClick={togglePlanMode} className={actionClassName}>
+          <ListChecks strokeWidth={1.75} />
         </IconButton>
       </div>
 
-      {disabled ? (
-        <IconButton
-          aria-label="Stop"
-          type="button"
-          onClick={stop}
-          className="bg-[#dc2626] text-white hover:bg-red-700"
-        >
-          <Square className="h-3 w-3 fill-current" />
+      <div className="flex shrink-0 items-center gap-1">
+        <IconButton aria-label="Meeting minutes" aria-disabled="true" title={NOT_AVAILABLE_TOOLTIP} className={actionClassName}>
+          <AudioLines strokeWidth={1.75} />
         </IconButton>
-      ) : (
-        <IconButton
-          aria-label="Send"
-          disabled={!value.trim()}
-          onClick={submit}
-          className="bg-surface-main-background text-text-primary hover:bg-surface-main-background"
-        >
-          <ArrowUp />
+        <IconButton aria-label="Dictation" aria-disabled="true" title={NOT_AVAILABLE_TOOLTIP} className={actionClassName}>
+          <Mic strokeWidth={1.75} />
         </IconButton>
-      )}
+
+        {disabled ? (
+          <IconButton
+            aria-label="Stop"
+            type="button"
+            onClick={stop}
+            className="bg-[#dc2626] text-white hover:bg-red-700"
+          >
+            <Square className="h-3 w-3 fill-current" />
+          </IconButton>
+        ) : (
+          <IconButton
+            aria-label="Send message"
+            disabled={!hasText}
+            title={hasText ? undefined : "Add a message first"}
+            onClick={submit}
+            className="bg-action text-white hover:bg-action hover:text-white hover:opacity-90 disabled:bg-surface-main-background-2 disabled:text-text-secondary disabled:opacity-50"
+          >
+            <ArrowUp />
+          </IconButton>
+        )}
+      </div>
     </div>
   );
 }

@@ -16,10 +16,12 @@ export type LiveRun = {
   accessToken?: string;
   status: RunMetadata["status"];
   text: string;
+  reasoning?: string; // the model's thinking, streamed live
   thinkingStartedAt?: string;
   tools?: RunMetadata["tools"];
   assets?: RunMetadata["assets"];
   waitpoint?: RunMetadata["waitpoint"];
+  plan?: RunMetadata["plan"];
   currentStep?: string;
   error?: SafeError;
   isReconnecting?: boolean;
@@ -30,7 +32,13 @@ type LiveRunState = {
   start: (chatId: string) => void;
   connect: (
     chatId: string,
-    ids: { runId?: string; triggerRunId: string; accessToken: string; status?: RunStatus | RunMetadata["status"] },
+    ids: {
+      runId?: string;
+      triggerRunId: string;
+      accessToken: string;
+      status?: RunStatus | RunMetadata["status"];
+      waitpoint?: RunMetadata["waitpoint"];
+    },
   ) => void;
   stop: (chatId: string) => void;
   setStatus: (chatId: string, status: RunMetadata["status"]) => void;
@@ -38,6 +46,8 @@ type LiveRunState = {
   fail: (chatId: string, message: string) => void;
   setMetadata: (chatId: string, metadata: RunMetadata) => void;
   setText: (chatId: string, text: string) => void;
+  setReasoning: (chatId: string, reasoning: string) => void;
+  clearWaitpoint: (chatId: string) => void;
   clear: (chatId: string) => void;
   reset: () => void;
 };
@@ -71,6 +81,7 @@ export const useLiveRunStore = create<LiveRunState>((set) => ({
         thinkingStartedAt: existing?.thinkingStartedAt,
         tools: existing?.tools ?? [],
         assets: existing?.assets ?? [],
+        waitpoint: existing?.waitpoint,
         ...existing,
         ...restIds,
         status: finalStatus,
@@ -113,10 +124,19 @@ export const useLiveRunStore = create<LiveRunState>((set) => ({
       // metadata update (e.g. still "working") bounce the status back.
       const status =
         run.status === "stopping" && !FINAL_STATUSES.includes(metadata.status) ? run.status : metadata.status;
-      return { runs: { ...s.runs, [chatId]: { ...run, ...metadata, status, thinkingStartedAt } } };
+      // Metadata is a full snapshot: a waitpoint absent from this update is a
+      // waitpoint that's been resolved, so clear it explicitly rather than let the
+      // spread below silently keep the stale one.
+      return {
+        runs: { ...s.runs, [chatId]: { ...run, ...metadata, status, thinkingStartedAt, waitpoint: metadata.waitpoint } },
+      };
     }),
 
   setText: (chatId, text) => update(set, chatId, { text }),
+
+  setReasoning: (chatId, reasoning) => update(set, chatId, { reasoning }),
+
+  clearWaitpoint: (chatId) => update(set, chatId, { waitpoint: undefined }),
 
   clear: (chatId) =>
     set((s) => {

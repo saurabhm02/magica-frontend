@@ -7,7 +7,7 @@ import { useLiveRunStore } from "@/stores/live-run.store";
 import { server } from "../mocks/server";
 
 vi.mock("@clerk/nextjs", () => ({ useAuth: () => ({ getToken: async () => "token" }) }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/" }));
 
 const now = new Date().toISOString();
 const url = "http://localhost:4000/api/v1/chats";

@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { formatSummaryLine } from "@/lib/constants";
+import { isReasoningStep, REASONING_RENDER_KEY, thinkingInProgress } from "@/lib/reasoning";
 import type { StepItem } from "@/lib/types";
 import { useUiStore } from "@/stores/ui.store";
+import { ReasoningRow } from "./reasoning-row";
 import { StatusLine } from "./status-line";
 import { StepRow } from "./step-row";
 import { useElapsedTime } from "./use-elapsed-time";
@@ -14,9 +16,10 @@ export type StepListProps = {
   isLive?: boolean;
   status?: string;
   thinkingStartedAt?: string;
+  reasoning?: string;
 };
 
-export function StepList({ steps, isLive, status, thinkingStartedAt }: StepListProps) {
+export function StepList({ steps, isLive, status, thinkingStartedAt, reasoning }: StepListProps) {
   const openStepArtifact = useUiStore((s) => s.openStepArtifact);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
@@ -26,40 +29,49 @@ export function StepList({ steps, isLive, status, thinkingStartedAt }: StepListP
   };
 
   const isThinking = isLive && (status === "queued" || status === "thinking");
-  const isWorking = isLive && status === "working";
   const isWaiting = isLive && status === "waiting";
+  const isActive = isLive && (status === "working" || isWaiting);
   const isStopping = isLive && status === "stopping";
   const isCancelled = status === "cancelled";
   const isComplete = !isLive || status === "complete" || isCancelled;
 
-  const elapsedThinking = useElapsedTime(thinkingStartedAt, isThinking || isWorking);
+  const elapsedThinking = useElapsedTime(thinkingStartedAt, isActive);
 
-  if (isThinking) return <StatusLine status="thinking" elapsed={elapsedThinking} />;
-  if (isWaiting) return <StatusLine status="waiting" />;
+  if (isThinking) return <StatusLine status="thinking" reasoning={reasoning} />;
   if (isStopping) return <StatusLine status="stopping" />;
 
-  if (isWorking && steps.length === 0) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-text-secondary">
-        <AnimatedDots />
-        <span>Working {elapsedThinking}s</span>
-      </div>
-    );
+  // No tool steps yet: Magica keeps "Thinking" while the reply text streams in.
+  if (isActive && steps.length === 0) {
+    return isWaiting ? <StatusLine status="waiting" /> : <StatusLine status="thinking" reasoning={reasoning} />;
   }
 
-  if (steps.length === 0) return null;
+  // Reasoning rows sit between tool rows but, like Magica, never count toward the summary.
+  const toolSteps = steps.filter((s) => !isReasoningStep(s));
+  if (toolSteps.length === 0) return null;
 
-  const activeStep = steps.find((s) => s.status === "running") || steps[steps.length - 1];
-  const summaryText = formatSummaryLine(steps.map((s) => s.doneLabel || s.label || "").filter(Boolean));
+  // Like Magica, the model's thinking for the next step streams in as a grey row at the end,
+  // so the list never sits still between steps.
+  const thinkingNow = isActive && !isWaiting ? thinkingInProgress(reasoning, steps) : "";
+  const rows: StepItem[] = thinkingNow
+    ? [...steps, { id: "reasoning_live", name: REASONING_RENDER_KEY, renderKey: REASONING_RENDER_KEY, status: "running", text: thinkingNow }]
+    : steps;
+
+  // Header: the running step, "Working" while it thinks, else the newest reasoning title
+  // (Magica keeps "Decided to …" up while the reply streams), else the last step.
+  const latestReasoningTitle = steps.filter((s) => isReasoningStep(s) && s.label).at(-1)?.label;
+  const runningLabel = steps.find((s) => s.status === "running")?.label;
+  const headerLabel = runningLabel || (thinkingNow && "Working") || latestReasoningTitle || steps.at(-1)?.label;
+  const summaryText = formatSummaryLine(toolSteps.map((s) => s.doneLabel || s.label || "").filter(Boolean));
 
   return (
     <div className="flex flex-col gap-2 w-full max-w-[560px]">
-      {isWorking && (
+      {isActive && (
         <div className="flex items-center gap-2 text-sm text-text-secondary mb-1">
           <AnimatedDots />
           <span className="truncate">
-            {activeStep?.label || "Working"} {elapsedThinking}s
+            {headerLabel || "Working"} {elapsedThinking}s
           </span>
+          <ChevronDown className="h-4 w-4 shrink-0" />
         </div>
       )}
 
@@ -78,18 +90,28 @@ export function StepList({ steps, isLive, status, thinkingStartedAt }: StepListP
         </button>
       )}
 
-      {(isWorking || summaryExpanded) && (
+      {(isActive || summaryExpanded) && (
         <div className="rounded-16 border border-border-secondary bg-surface-primary overflow-hidden divide-y divide-border-secondary">
-          {steps.map((step) => (
-            <StepRow
-              key={step.id}
-              step={step}
-              expanded={!!expandedRows[step.id]}
-              onToggle={() => toggleRow(step.id)}
-              onClick={() => openStepArtifact(step)}
-            />
-          ))}
+          {rows.map((step) =>
+            isReasoningStep(step) ? (
+              <ReasoningRow key={step.id} step={step} expanded={!!expandedRows[step.id]} onToggle={() => toggleRow(step.id)} />
+            ) : (
+              <StepRow
+                key={step.id}
+                step={step}
+                expanded={!!expandedRows[step.id]}
+                onToggle={() => toggleRow(step.id)}
+                onClick={() => openStepArtifact(step)}
+              />
+            ),
+          )}
         </div>
+      )}
+
+      {isWaiting && (
+        <p aria-live="polite" className="animate-pulse text-sm text-text-secondary">
+          Waiting for your input...
+        </p>
       )}
     </div>
   );

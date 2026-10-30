@@ -2,7 +2,7 @@
 
 import { useClerk, useUser } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
-import { LogOut, MoreVertical } from "lucide-react";
+import { LogOut } from "lucide-react";
 import Image from "next/image";
 import { useRef, useState } from "react";
 import { useClickOutside } from "@/lib/use-click-outside";
@@ -36,9 +36,9 @@ export function UserCard() {
         aria-label="User menu"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between rounded-8 p-1.5 hover:bg-surface-secondary/70 transition"
+        className="flex h-[34px] w-full items-center justify-between gap-2 rounded-16 border border-border-tertiary bg-surface-main-background px-2 transition-colors duration-75 hover:bg-surface-secondary"
       >
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
           {user.imageUrl ? (
             <Image
               src={user.imageUrl}
@@ -52,9 +52,8 @@ export function UserCard() {
               {displayName.charAt(0).toUpperCase()}
             </span>
           )}
-          <span className="truncate text-sm text-text-primary font-medium">{displayName}</span>
         </div>
-        <MoreVertical className="size-4 shrink-0 text-text-tertiary" />
+        <span className="truncate text-sm font-medium text-text-primary">{displayName}</span>
       </button>
 
       {open && (

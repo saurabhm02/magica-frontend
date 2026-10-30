@@ -1,14 +1,19 @@
 "use client";
 
 import { StepList } from "@/components/tools/step-list";
+import { parsePlan } from "@/lib/waitpoint";
 import { useLiveRunStore } from "@/stores/live-run.store";
 import { AssistantText } from "./assistant-text";
 import { InterruptedCard } from "./interrupted-card";
 import { MediaAssetList } from "./media-asset-list";
+import { PlanCard } from "./plan-card";
+import { PlanProgressCard } from "./plan-progress-card";
 
 export function LiveBubble({ chatId }: { chatId: string }) {
   const liveRun = useLiveRunStore((s) => s.runs[chatId]);
   if (!liveRun) return null;
+
+  const plan = liveRun.waitpoint?.type === "plan" ? parsePlan(liveRun.waitpoint.payload) : null;
 
   if (liveRun.status === "failed") {
     return (
@@ -35,9 +40,14 @@ export function LiveBubble({ chatId }: { chatId: string }) {
           isLive={true}
           status={liveRun.status}
           thinkingStartedAt={liveRun.thinkingStartedAt}
+          reasoning={liveRun.reasoning}
         />
 
-        <AssistantText text={liveRun.text} cursor={liveRun.status === "working"} />
+        {liveRun.plan && <PlanProgressCard plan={liveRun.plan} />}
+
+        {plan && liveRun.waitpoint && <PlanCard chatId={chatId} waitpointId={liveRun.waitpoint.id} plan={plan} />}
+
+        <AssistantText text={liveRun.text} />
 
         <MediaAssetList assets={liveRun.assets ?? []} />
 

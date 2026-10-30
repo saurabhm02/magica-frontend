@@ -15,6 +15,7 @@ export type StepItem = {
   fields?: StepField[];
   credits?: number;
   model?: string;
+  text?: string; // a reasoning step's raw thinking
   error?: SafeError | string;
   assets?: ArtifactAsset[];
 };

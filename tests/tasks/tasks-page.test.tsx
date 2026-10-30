@@ -6,7 +6,10 @@ import TasksPage from "@/app/(app)/tasks/page";
 import { server } from "../mocks/server";
 
 vi.mock("@clerk/nextjs", () => ({ useAuth: () => ({ getToken: async () => "token" }) }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 const now = new Date().toISOString();
 const url = "http://localhost:4000/api/v1/chats";
@@ -42,7 +45,8 @@ describe("TasksPage", () => {
       fireEvent.change(search, { target: { value } });
     }
 
-    await waitFor(() => expect(requestedQueries).toContain("greet"));
+    // The full suite runs many files at once, so allow more than the 1s default.
+    await waitFor(() => expect(requestedQueries).toContain("greet"), { timeout: 3000 });
     expect(requestedQueries.filter((q) => q && q !== "greet")).toEqual([]);
   });
 });

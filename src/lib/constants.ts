@@ -2,14 +2,19 @@ import type { RunMetadata } from "@/contracts/run";
 
 export const FINAL_STATUSES: RunMetadata["status"][] = ["complete", "failed", "cancelled"];
 export const TEXT_STREAM_ID = "text";
+export const REASONING_STREAM_ID = "reasoning";
 
 export const REST_POLL_INTERVAL_MS = 2500;
 
-export function formatCredits(microcredits?: number): string {
+export const NOT_AVAILABLE_TOOLTIP = "Not available in this demo";
+
+export function formatCredits(microcredits?: number, options?: { precision?: number }): string {
   if (microcredits === undefined || microcredits === null) return "";
   const m = microcredits / 1_000_000;
-  const decimals = m > 0 && m < 0.01 ? 3 : 2;
-  return `${m.toFixed(decimals)}M`;
+  const decimals = options?.precision ?? (m > 0 && m < 0.01 ? 3 : 2);
+  const fixed = m.toFixed(decimals);
+  // A custom precision shows "up to" that many decimals: trim the padding zeros it added.
+  return `${options?.precision ? fixed.replace(/\.?0+$/, "") : fixed}M`;
 }
 
 export function formatSummaryLine(doneLabels: string[]): string {

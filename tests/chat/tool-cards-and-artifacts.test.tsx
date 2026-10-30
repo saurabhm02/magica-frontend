@@ -335,7 +335,7 @@ describe("MediaAsset & Markdown", () => {
 });
 
 describe("LiveBubble", () => {
-  it("never shows empty bubble: shows Working timer when status is working with no tools and no text yet", () => {
+  it("never shows an empty bubble: shows Thinking while working with no tools and no text yet", () => {
     useLiveRunStore.setState({
       runs: {
         [chatId]: {
@@ -349,7 +349,7 @@ describe("LiveBubble", () => {
     });
 
     render(<LiveBubble chatId={chatId} />);
-    expect(screen.getByText(/Working/)).toBeInTheDocument();
+    expect(screen.getByText("Thinking")).toBeInTheDocument();
   });
 
   it("shows a non-blocking Reconnecting indicator while isReconnecting is set", () => {
@@ -386,6 +386,73 @@ describe("LiveBubble", () => {
 
     render(<LiveBubble chatId={chatId} />);
     expect(screen.getByText(/Thinking/)).toBeInTheDocument();
+  });
+
+  it("clicking Thinking opens and closes the model's live reasoning", () => {
+    useLiveRunStore.setState({
+      runs: { [chatId]: { status: "thinking", text: "", reasoning: "The user wants to know about the project", tools: [], assets: [] } },
+    });
+
+    render(<LiveBubble chatId={chatId} />);
+    const toggle = screen.getByRole("button", { name: /Thinking/ });
+    expect(screen.queryByText(/The user wants/)).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText(/The user wants/)).toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(screen.queryByText(/The user wants/)).not.toBeInTheDocument();
+  });
+});
+
+describe("StepList reasoning rows", () => {
+  const reasoningStep = {
+    id: "reasoning_0",
+    name: "reasoning",
+    renderKey: "reasoning",
+    status: "succeeded" as const,
+    label: "Decided to inspect the working directory",
+    text: "Here's a thinking process:\nThe question is **ambiguous**, so I should look at the workspace.",
+  };
+  const toolStep = { id: "t1", name: "run_command", renderKey: "run_command", status: "succeeded" as const, label: "Ran a command", doneLabel: "ran a command" };
+
+  it("shows the title in the header and as a row, leaves it out of the summary, and expands to the cleaned thinking", () => {
+    const { rerender } = render(<StepList steps={[reasoningStep, toolStep]} isLive status="working" thinkingStartedAt={now} />);
+    expect(screen.getAllByText(/^Decided to inspect the working directory/)).toHaveLength(2); // header + row
+
+    fireEvent.click(screen.getByTestId("step-row-reasoning").querySelector("button")!);
+    expect(screen.getByText("The question is ambiguous, so I should look at the workspace.")).toBeInTheDocument();
+
+    rerender(<StepList steps={[reasoningStep, toolStep]} />);
+    expect(screen.getByRole("button", { name: /^Ran a command/ })).toBeInTheDocument();
+  });
+
+  it("shows the raw thinking on one line until the title arrives", () => {
+    render(<StepList steps={[{ ...reasoningStep, label: undefined }, { ...toolStep, status: "running" }]} isLive status="working" thinkingStartedAt={now} />);
+    expect(within(screen.getByTestId("step-row-reasoning")).getByText(/^The question is ambiguous/)).toBeInTheDocument();
+  });
+
+  it("streams the thinking for the next step as a live grey row after the steps already shown", () => {
+    const shown = "First I check the brief.";
+    render(
+      <StepList
+        steps={[{ ...reasoningStep, text: shown }, toolStep]}
+        isLive
+        status="working"
+        thinkingStartedAt={now}
+        reasoning={`${shown}Since they picked bold, I'll make three options`}
+      />,
+    );
+    const rows = screen.getAllByTestId("step-row-reasoning");
+    expect(rows).toHaveLength(2);
+    expect(within(rows[1]!).getByText("Since they picked bold, I'll make three options")).toBeInTheDocument();
+    expect(screen.getByText(/^Working \d+s/)).toBeInTheDocument();
+  });
+
+  it("shows nothing for thinking alone, like a plain Magica reply", () => {
+    const { container } = render(<StepList steps={[reasoningStep]} />);
+    expect(container).toBeEmptyDOMElement();
   });
 });
 

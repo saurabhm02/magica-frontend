@@ -8,23 +8,29 @@ import { MagicaMascot } from "@/components/icons/magica-mascot";
 export default function NewChatPage() {
   const submit = useSubmitMessage();
 
+  // Sizes and spacing measured on magica.com: the hero sits near the top (not centered),
+  // then a 48px gap to the composer.
   return (
-    <div className="flex h-full items-center justify-center">
-      <div className="mx-auto flex w-full max-w-[1000px] flex-col items-center gap-12 px-6">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <MagicaMascot />
+    <div className="flex h-full flex-col items-center overflow-y-auto">
+      <div className="flex w-full max-w-[1000px] flex-col items-center gap-12">
+        <div className="w-[min(448px,calc(100vw-48px))] pt-12 text-center md:pt-[113.375px]">
+          <MagicaMascot className="mx-auto block size-10" />
           <Clock />
-          <h1 className="text-[24px] leading-8 font-bold text-text-primary">Your AI worker</h1>
-          <p className="text-sm leading-6 font-medium text-text-secondary">Work at the speed of thought.</p>
+          <h1 className="mt-4 text-[20px] leading-7 font-bold text-text-primary md:mt-1 md:text-[24px] md:leading-8">
+            Your AI worker
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-text-secondary">Work at the speed of thought.</p>
         </div>
 
-        <ComposerProvider onSubmit={submit}>
-          <ComposerRoot>
-            <ComposerTextarea />
-            <ComposerActions />
-          </ComposerRoot>
-          <ComposerError />
-        </ComposerProvider>
+        <div className="w-full px-4 sm:px-8 md:px-12 lg:px-0">
+          <ComposerProvider onSubmit={submit}>
+            <ComposerRoot>
+              <ComposerTextarea />
+              <ComposerActions />
+            </ComposerRoot>
+            <ComposerError />
+          </ComposerProvider>
+        </div>
       </div>
     </div>
   );

@@ -48,6 +48,12 @@ function useOptimisticChatsMutation<TVars, TData>(
   });
 }
 
+export function setChatTitleInCache(queryClient: QueryClient, chatId: string, title: string) {
+  queryClient.setQueryData<ChatsPages>(queryKeys.chats, (data) =>
+    mapChats(data, (items) => items.map((c) => (c.id === chatId ? { ...c, title } : c))),
+  );
+}
+
 export function useRenameChat() {
   return useOptimisticChatsMutation(
     (token, vars: { chatId: string; title: string }) => updateChat(token, vars.chatId, { title: vars.title }),

@@ -2,11 +2,12 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useRealtimeRun, useRealtimeStream } from "@trigger.dev/react-hooks";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RunMetadata } from "@/contracts/run";
 import { queryKeys } from "@/queries/keys";
+import { setChatTitleInCache } from "@/queries/chats";
 import { useActiveRun } from "@/queries/messages";
-import { FINAL_STATUSES, REST_POLL_INTERVAL_MS, TEXT_STREAM_ID } from "@/lib/constants";
+import { FINAL_STATUSES, REASONING_STREAM_ID, REST_POLL_INTERVAL_MS, TEXT_STREAM_ID } from "@/lib/constants";
 import { useLiveRunStore } from "@/stores/live-run.store";
 
 
@@ -26,16 +27,37 @@ export function LiveRunSync({ chatId }: { chatId: string }) {
   const [isError, setIsError] = useState(false);
   const [finishedRunId, setFinishedRunId] = useState<string | null>(null);
   const [reconnectNonce, setReconnectNonce] = useState(0);
+  const [lingering, setLingering] = useState<{ runId: string; accessToken: string } | null>(null);
   const finalizedRunId = useRef<string | null>(null);
+
+  // The suggestion chip is saved to the message a few seconds after the run
+  // completes, so keep listening (headlessly) until the trigger run itself
+  // finishes, then refetch messages once more to pick it up.
+  const onLingerFinished = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.messages(chatId) });
+    setLingering(null);
+  }, [chatId, queryClient]);
 
   // Reload recovery: pick the live run back up on mount / chat switch.
   useEffect(() => {
     if (!activeRun || triggerRunId) return;
+    const waitpoint =
+      activeRun.waitpoint && activeRun.waitpoint.status === "pending"
+        ? {
+            id: activeRun.waitpoint.id,
+            type: activeRun.waitpoint.type,
+            message: activeRun.waitpoint.message,
+            questions: activeRun.waitpoint.questions,
+            payload: activeRun.waitpoint.payload,
+            expiresAt: activeRun.waitpoint.expiresAt,
+          }
+        : undefined;
     connect(chatId, {
       runId: activeRun.runId,
       triggerRunId: activeRun.triggerRunId,
       accessToken: activeRun.accessToken,
       status: activeRun.status,
+      waitpoint,
     });
   }, [activeRun, triggerRunId, chatId, connect]);
 
@@ -44,13 +66,14 @@ export function LiveRunSync({ chatId }: { chatId: string }) {
     const terminal = FINAL_STATUSES.includes(status) || finishedRunId === triggerRunId;
     if (!terminal || finalizedRunId.current === triggerRunId) return;
     finalizedRunId.current = triggerRunId;
+    setLingering({ runId: triggerRunId, accessToken: accessToken ?? "" });
 
     queryClient.invalidateQueries({ queryKey: queryKeys.credits });
     queryClient.invalidateQueries({ queryKey: queryKeys.creditLedger });
     queryClient.setQueryData(queryKeys.activeRun(chatId), null);
     queryClient.invalidateQueries({ queryKey: queryKeys.activeRun(chatId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.messages(chatId) }).then(() => clear(chatId));
-  }, [triggerRunId, status, finishedRunId, chatId, queryClient, clear]);
+  }, [triggerRunId, status, finishedRunId, chatId, queryClient, clear, accessToken]);
 
 
   useEffect(() => {
@@ -87,21 +110,42 @@ export function LiveRunSync({ chatId }: { chatId: string }) {
     };
   }, [isError, triggerRunId, chatId, refetchActiveRun, connect, clear, queryClient, setReconnecting]);
 
-  if (!triggerRunId) return null;
-
   return (
-    <RealtimeSubscription
-      key={`${triggerRunId}-${reconnectNonce}`}
-      chatId={chatId}
-      runId={triggerRunId}
-      reconnectNonce={reconnectNonce}
-      accessToken={accessToken ?? ""}
-      setMetadata={setMetadata}
-      setText={setText}
-      setIsError={setIsError}
-      setFinishedRunId={setFinishedRunId}
-    />
+    <>
+      {triggerRunId && (
+        <RealtimeSubscription
+          key={`${triggerRunId}-${reconnectNonce}`}
+          chatId={chatId}
+          runId={triggerRunId}
+          reconnectNonce={reconnectNonce}
+          accessToken={accessToken ?? ""}
+          setMetadata={setMetadata}
+          setText={setText}
+          setIsError={setIsError}
+          setFinishedRunId={setFinishedRunId}
+        />
+      )}
+      {lingering && <LingerSubscription key={lingering.runId} {...lingering} onFinished={onLingerFinished} />}
+    </>
   );
+}
+
+function LingerSubscription({
+  runId,
+  accessToken,
+  onFinished,
+}: {
+  runId: string;
+  accessToken: string;
+  onFinished: () => void;
+}) {
+  const { run } = useRealtimeRun(runId, { accessToken });
+
+  useEffect(() => {
+    if (run?.finishedAt) onFinished();
+  }, [run?.finishedAt, onFinished]);
+
+  return null;
 }
 
 function RealtimeSubscription({
@@ -126,16 +170,25 @@ function RealtimeSubscription({
   const options = { id: `${runId}-${reconnectNonce}`, accessToken };
   const { run, error: runError } = useRealtimeRun(runId, options);
   const { parts, error: streamError } = useRealtimeStream<string>(runId, TEXT_STREAM_ID, options);
+  const { parts: reasoningParts } = useRealtimeStream<string>(runId, REASONING_STREAM_ID, options);
+  const setReasoning = useLiveRunStore((s) => s.setReasoning);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!run?.metadata) return;
     const parsed = RunMetadata.safeParse(run.metadata);
-    if (parsed.success) setMetadata(chatId, parsed.data);
-  }, [run?.metadata, chatId, setMetadata]);
+    if (!parsed.success) return;
+    setMetadata(chatId, parsed.data);
+    if (parsed.data.chatTitle) setChatTitleInCache(queryClient, chatId, parsed.data.chatTitle);
+  }, [run?.metadata, chatId, setMetadata, queryClient]);
 
   useEffect(() => {
     if (parts.length) setText(chatId, parts.join(""));
   }, [parts, chatId, setText]);
+
+  useEffect(() => {
+    if (reasoningParts.length) setReasoning(chatId, reasoningParts.join(""));
+  }, [reasoningParts, chatId, setReasoning]);
 
   useEffect(() => {
     setIsError(!!(runError || streamError));

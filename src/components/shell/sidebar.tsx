@@ -10,7 +10,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className="hidden shrink-0 flex-col overflow-hidden rounded-24 border-r border-border-tertiary bg-surface-main-background-2 transition-[width] duration-150 md:flex"
+      className="hidden shrink-0 flex-col overflow-hidden rounded-24 border-r border-sidebar-edge bg-surface-main-background-2 transition-[width] duration-150 md:flex"
       style={{ width: collapsed ? 48 : 240 }}
     >
       {collapsed ? <SidebarRail onExpand={toggleCollapsed} /> : <SidebarContent onCollapse={toggleCollapsed} />}
