@@ -18,7 +18,13 @@ export function getToolDetail(token: string, name: string) {
 }
 
 export function createToolRun(token: string, name: string, body: CreateToolRunRequest) {
-  return request(`/tools/${name}/runs`, { method: "POST", body, schema: CreateToolRunResponse, token });
+  return request(`/tools/${name}/runs`, {
+    method: "POST",
+    body: { source: "ui", ...body },
+    headers: { "x-source": "ui" },
+    schema: CreateToolRunResponse,
+    token,
+  });
 }
 
 export function listToolRuns(token: string, name: string, query: Partial<ListToolRunsQuery>) {

@@ -8,7 +8,8 @@ export const queryKeys = {
   activeRun: (chatId: string) => ["activeRun", chatId] as const,
   tools: ["tools"] as const,
   toolDetail: (name: string) => ["tools", name] as const,
-  toolRuns: (name: string) => ["tools", name, "runs"] as const,
+  toolRuns: (name: string, source?: string) =>
+    source ? (["tools", name, "runs", source] as const) : (["tools", name, "runs"] as const),
   toolRun: (runId: string) => ["toolRuns", runId] as const,
   assets: (params?: { type?: string; source?: string }) => ["assets", params?.type ?? null, params?.source ?? null] as const,
 };

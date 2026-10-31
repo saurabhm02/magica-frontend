@@ -136,7 +136,9 @@ describe("ToolDetail generate", () => {
       fireEvent.click(generateBtn);
     });
 
-    await waitFor(() => expect(posted).toEqual({ input: { prompt: "a red apple", quality: "Medium" } }));
+    await waitFor(() =>
+      expect(posted).toEqual({ input: { prompt: "a red apple", quality: "Medium" }, source: "ui" }),
+    );
     expect(await screen.findByText("This may take a moment")).toBeInTheDocument();
 
     await act(async () => emitFinished("trigger-1"));
@@ -230,6 +232,58 @@ describe("ToolDetail run history", () => {
     expect(await screen.findByText("Running")).toBeInTheDocument();
     expect(screen.getByText("—")).toBeInTheDocument();
     expect(screen.queryByText("Completed")).not.toBeInTheDocument();
+  });
+
+  it("switches between UI Runs and API Runs tabs and displays the respective runs", async () => {
+    server.use(http.get(`${base}/tools/${toolName}`, () => HttpResponse.json(toolDetail())));
+    server.use(
+      http.get(`${base}/tools/${toolName}/runs`, ({ request }) => {
+        const url = new URL(request.url);
+        const source = url.searchParams.get("source");
+        if (source === "api") {
+          return HttpResponse.json({
+            items: [
+              {
+                runId: "api-run-1",
+                toolName,
+                status: "succeeded",
+                source: "api",
+                credits: 5000,
+                output: null,
+                assets: [],
+                createdAt: now,
+              },
+            ],
+            nextCursor: null,
+          });
+        }
+        return HttpResponse.json({
+          items: [
+            {
+              runId: "ui-run-1",
+              toolName,
+              status: "succeeded",
+              source: "ui",
+              credits: 5000,
+              output: null,
+              assets: [],
+              createdAt: now,
+            },
+          ],
+          nextCursor: null,
+        });
+      }),
+    );
+
+    renderToolDetail();
+
+    expect(await screen.findByText("ui-run-1")).toBeInTheDocument();
+    expect(screen.queryByText("api-run-1")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "API Runs" }));
+
+    expect(await screen.findByText("api-run-1")).toBeInTheDocument();
+    expect(screen.queryByText("ui-run-1")).not.toBeInTheDocument();
   });
 });
 

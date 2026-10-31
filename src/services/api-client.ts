@@ -20,6 +20,7 @@ type RequestOptions<T> = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
   query?: Record<string, string | number | boolean | undefined>;
+  headers?: Record<string, string>;
   schema: z.ZodType<T>;
   token: string;
 };
@@ -42,7 +43,7 @@ type RequestOptions<T> = {
  */
 export async function request<T>(
   path: string,
-  { method = "GET", body, query, schema, token }: RequestOptions<T>,
+  { method = "GET", body, query, headers, schema, token }: RequestOptions<T>,
 ): Promise<T> {
   const url = new URL(API_BASE + path);
   for (const [key, value] of Object.entries(query ?? {})) {
@@ -56,6 +57,7 @@ export async function request<T>(
       headers: {
         Authorization: `Bearer ${token}`,
         ...(body !== undefined && { "Content-Type": "application/json" }),
+        ...headers,
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });

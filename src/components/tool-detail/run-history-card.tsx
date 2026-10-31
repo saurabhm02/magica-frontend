@@ -32,13 +32,13 @@ export function RunHistoryCard({
   activeRunId?: string | null;
   onSelectRun?: (runId: string) => void;
 }) {
-  const { data, isPending, fetchNextPage, hasNextPage, isFetchingNextPage } = useToolRuns(toolName);
   const [tab, setTab] = useState<"ui" | "api">("ui");
+  const { data, isPending, fetchNextPage, hasNextPage, isFetchingNextPage } = useToolRuns(toolName, tab);
   const [query, setQuery] = useState("");
   const sentinelRef = useInfiniteScroll(hasNextPage, fetchNextPage);
 
   const allRuns = data?.pages.flatMap((page) => page.items) ?? [];
-  const runs = tab === "api" ? [] : allRuns.filter((run) => run.runId.toLowerCase().includes(query.trim().toLowerCase()));
+  const runs = allRuns.filter((run) => run.runId.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
     <div className="mt-6 rounded-24 border border-border-tertiary">
@@ -78,7 +78,15 @@ export function RunHistoryCard({
 
       {isPending && <p className="p-4 text-sm text-text-secondary">Loading…</p>}
 
-      {!isPending && runs.length === 0 && <p className="p-4 text-sm text-text-secondary">No UI run yet.</p>}
+      {!isPending && runs.length === 0 && (
+        <p className="p-4 text-sm text-text-secondary">
+          {query.trim()
+            ? "No runs match your search."
+            : tab === "api"
+            ? "No API run yet."
+            : "No UI run yet."}
+        </p>
+      )}
 
       {runs.length > 0 && (
         <table className="w-full table-fixed text-sm">

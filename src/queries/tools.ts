@@ -1,7 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CreateToolRunRequest } from "@/contracts/api";
+import type { CreateToolRunRequest, ToolRunSource } from "@/contracts/api";
 import {
   createToolRun,
   getToolDetail,
@@ -47,12 +47,13 @@ export function useCreateToolRun(name: string) {
   });
 }
 
-export function useToolRuns(name: string) {
+export function useToolRuns(name: string, source?: ToolRunSource) {
   const withAuth = useAuthedApi();
 
   return useInfiniteQuery({
-    queryKey: queryKeys.toolRuns(name),
-    queryFn: ({ pageParam }: { pageParam?: string }) => withAuth((token) => listToolRuns(token, name, { cursor: pageParam })),
+    queryKey: queryKeys.toolRuns(name, source),
+    queryFn: ({ pageParam }: { pageParam?: string }) =>
+      withAuth((token) => listToolRuns(token, name, { cursor: pageParam, source })),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });

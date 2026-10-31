@@ -5,7 +5,6 @@ export const MAX_ATTACHMENTS_PER_MESSAGE = 10;
 export const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; 
 
 export const ALLOWED_ATTACHMENT_MIME_TYPES = [
-  // Images
   "image/jpeg",
   "image/jpg",
   "image/png",
@@ -14,7 +13,6 @@ export const ALLOWED_ATTACHMENT_MIME_TYPES = [
   "image/avif",
   "image/heic",
   "image/heif",
-  // Videos
   "video/mp4",
   "video/quicktime",
   "video/webm",
