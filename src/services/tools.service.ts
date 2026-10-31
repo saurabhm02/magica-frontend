@@ -21,7 +21,6 @@ export function createToolRun(token: string, name: string, body: CreateToolRunRe
   return request(`/tools/${name}/runs`, {
     method: "POST",
     body: { source: "ui", ...body },
-    headers: { "x-source": "ui" },
     schema: CreateToolRunResponse,
     token,
   });
