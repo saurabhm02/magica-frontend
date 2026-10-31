@@ -97,7 +97,7 @@ describe("optimistic user message", () => {
     await act(async () => {
       await result.current.messages.refetch();
     });
-    expect(texts()).toEqual(["Hii"]);
+    await waitFor(() => expect(texts()).toEqual(["Hii"]));
 
     await act(async () => {
       releaseSend();
